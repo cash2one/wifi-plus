@@ -1,6 +1,7 @@
 .idea/
 vendor/
 composer.lock
+app/Config/Database.php
 !cache
 cache/Logs/
 cache/Session/
