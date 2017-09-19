@@ -32,14 +32,5 @@ class BaseUser extends Base
         parent::_initialize();
         $this->isLogin();
     }
-
-    /**
-     * 
-     */
-    private function isLogin()
-    {
-        if (!session('uid')) {
-            $this->redirect('index/index/log');
-        }
-    }
+    
 }

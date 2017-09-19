@@ -651,9 +651,26 @@ function get_version()
  *
  * @return string
  */
-function cutNewsInfo($info)
+function cut_nws_info($info)
 {
     $str = strip_tags($info);
 
     return substr($str, 0, 20);
+}
+
+/**
+ * 验证手机号
+ *
+ * @param $val
+ *
+ * @return bool
+ */
+function is_phone($val)
+{
+    if (ereg("^1[1-9][0-9]{9}$", $val)) {
+        return true;
+    }
+
+    return false;
+
 }

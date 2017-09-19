@@ -21,23 +21,14 @@ use App\Controllers\BaseUser;
  */
 class Web extends BaseUser
 {
-    /**
-     * 当前用户ID
-     *
-     * @var
-     */
-    private $uid;
 
     /**
-     *
+     * 初始化配置
      */
     protected function _initialize()
     {
         parent::_initialize();
         $this->init();
-        //        $this->uid =session('uid');
-        $this->uid = 12;
-
     }
 
     /**

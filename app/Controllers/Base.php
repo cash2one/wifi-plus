@@ -14,23 +14,33 @@ class Base extends YP_Controller
 {
     public $p = '';//正式环境中这里要改成''
 
+    /**
+     * 用户ID
+     *
+     * @var
+     */
+    public $uid;
+
     protected function _initialize()
     {
         //读取模板主题路径
         $theme_path = $this->_getThemePath();
-        $public     = ['css'  => $this->p . '/UI/Public/css',
-                       'js'   => $this->p . '/UI/Public/js',
-                       'img'  => $this->p . '/UI/Public/images/',
-                       'root' => $this->p . '/UI/Public'
+        $public     = [
+            'css'  => $this->p . '/UI/Public/css',
+            'js'   => $this->p . '/UI/Public/js',
+            'img'  => $this->p . '/UI/Public/images/',
+            'root' => $this->p . '/UI/Public'
         ];
-        $theme      = ['css'  => $theme_path . '/style/css',
-                       'js'   => $theme_path . '/style/js',
-                       'img'  => $theme_path . '/style/images',
-                       'root' => $theme_path . '/'
+        $theme      = [
+            'css'  => $theme_path . '/style/css',
+            'js'   => $theme_path . '/style/js',
+            'img'  => $theme_path . '/style/images',
+            'root' => $theme_path . '/'
         ];
         $style      = ['P' => $public, 'T' => $theme];
         $this->assign('Theme', $style);
         $this->assign('action', $this->getActionName());
+        $this->uid = (isset($_SESSION['uid']) && $_SESSION['uid']) ? $_SESSION['uid'] : 0;
 
     }
 
@@ -89,8 +99,8 @@ class Base extends YP_Controller
             $secretKey = $qiniu ['secretKey'];
             $bucket    = $qiniu ['bucket'];
             Qiniu_SetKeys($accessKey, $secretKey);
-            $putPolicy = new Qiniu_RS_PutPolicy ($bucket);
-            $upToken   = $putPolicy->Token(null);
+            $putPolicy       = new Qiniu_RS_PutPolicy ($bucket);
+            $upToken         = $putPolicy->Token(null);
             $putExtra        = new Qiniu_PutExtra ();
             $putExtra->Crc32 = 1;
             $rs              = Qiniu_PutFile($upToken, $key1, $tmp_file, $putExtra);
@@ -98,8 +108,8 @@ class Base extends YP_Controller
             return $rs;
         } else { //百度
             import("Baidu.bcs", dirname(__FILE__));
-            $bsc  = C('BSC');
-            $key1 = md5($uid . time()) . $file_name;
+            $bsc       = C('BSC');
+            $key1      = md5($uid . time()) . $file_name;
             $accessKey = $bsc ['accessKey'];
             $secretKey = $bsc ['secretKey'];
             $bucket    = $bsc ['bucket'];
@@ -177,7 +187,7 @@ class Base extends YP_Controller
             $bucket    = $qiniu ['bucket'];
             Qiniu_SetKeys($accessKey, $secretKey);
             $client = new Qiniu_MacHttpClient(null);
-            $err = Qiniu_RS_Delete($client, $bucket, $key1);
+            $err    = Qiniu_RS_Delete($client, $bucket, $key1);
             if ($err !== null) {
                 return false;
             } else {
@@ -185,6 +195,17 @@ class Base extends YP_Controller
             }
         } else {
             //TODO 删除百度
+        }
+    }
+
+    /**
+     * 检测是否登录
+     */
+    public function isLogin()
+    {
+        if (!isset($_SESSION['uid']) || !$_SESSION['uid']) {
+            $url = 'http://' . $_SERVER['HTTP_HOST'];
+            header('Location: ' . $url . '/Index/Index/log');
         }
     }
 }
