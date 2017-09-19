@@ -10,10 +10,23 @@ namespace App\Controllers\Agent;
 
 use App\Controllers\BaseAgent;
 
+/**
+ * Class Index
+ *
+ * @package App\Controllers\Agent
+ */
 class Index extends BaseAgent
 {
-    private $aid;//代理商用户ID
+    /**
+     * 代理商用户ID
+     *
+     * @var
+     */
+    private $aid;
 
+    /**
+     * 初始化
+     */
     protected function _initialize()
     {
         parent::_initialize();

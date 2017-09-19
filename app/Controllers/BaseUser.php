@@ -10,15 +10,35 @@ namespace App\Controllers;
 
 class BaseUser extends Base
 {
+    /**
+     * 当前页码
+     *
+     * @var int
+     */
+    public $page    = 1;
+
+    /**
+     * 每页显示
+     *
+     * @var int
+     */
+    public $perPage = 10;
+
+    /**
+     *
+     */
     protected function _initialize()
     {
         parent::_initialize();
         $this->isLogin();
     }
+
+    /**
+     * 
+     */
     private function isLogin()
     {
-        if(!session('uid'))
-        {
+        if (!session('uid')) {
             $this->redirect('index/index/log');
         }
     }

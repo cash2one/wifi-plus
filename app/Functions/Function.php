@@ -16,7 +16,7 @@ if (!function_exists('callBack')) {
      * @param array  $data
      * @param string $msg
      */
-    function callBack($errCode = 0, $data = [], $msg = '')
+    function call_back($errCode = 0, $data = [], $msg = '')
     {
         $errorResult = Services::error()->getAllError();
         $msg         = $msg ??  $errorResult[$errCode];
@@ -40,7 +40,7 @@ if (!function_exists('callBack')) {
  *
  * @return mixed
  */
-function setPageConfig($row, $url, $uri_segment, $per_page = 10)
+function set_page_config($row, $url, $uri_segment, $per_page = 10)
 {
     $config['base_url']          = $url;
     $config['total_rows']        = $row;
@@ -79,7 +79,7 @@ function setPageConfig($row, $url, $uri_segment, $per_page = 10)
  *
  * @return array|bool
  */
-function multiCurlPost($url_array, $wait_usec = 0)
+function multi_curl_post($url_array, $wait_usec = 0)
 {
     if (!is_array($url_array)) {
         return false;
@@ -156,9 +156,504 @@ function random($length)
  *
  * @return string
  */
-function getPassword($length = 6)
+function get_password($length = 6)
 {
     $str = substr(md5(time()), 0, $length);
 
     return $str;
+}
+
+/**
+ * 认证页面
+ *
+ * @param $pos
+ *
+ * @return string
+ */
+function get_ad_pos($pos)
+{
+    switch ($pos) {
+        case 0:
+            return '首页';
+            break;
+        case 1:
+            return '认证页面';
+            break;
+        default:
+            return '认证页面';
+            break;
+
+    }
+}
+
+/**
+ * 状态
+ *
+ * @param $id
+ *
+ * @return string
+ */
+function get_status($id)
+{
+    switch ($id) {
+        case 0:
+            return '停用';
+            break;
+        case 1:
+            return '正常';
+            break;
+        default:
+            return '正常';
+            break;
+
+    }
+}
+
+/**
+ * @param $mode
+ *
+ * @return string
+ */
+function get_ad_mode($mode)
+{
+    switch ($mode) {
+        case 0:
+            return '图片广告';
+            break;
+        case 1:
+            return '图文广告';
+            break;
+        default:
+            return '图片广告';
+            break;
+
+    }
+}
+
+/**
+ * @param $id
+ *
+ * @return string
+ */
+function get_pay_model($id)
+{
+    $str = [0 => '扣款', 1 => '充值'];
+
+    return isset($str[$id]) ? $str[$id] : '';
+}
+
+/**
+ * @param $pos
+ *
+ * @return string
+ */
+function get_auth_Way($pos)
+{
+    $str = [0 => '注册认证', 1 => '手机认证', 2 => '免认证'];
+
+    return isset($str[$pos]) ? $str[$pos] : '注册认证';
+}
+
+/**
+ * @return mixed
+ */
+function get_agent()
+{
+    $agent = $_SERVER['HTTP_USER_AGENT'];
+
+    return $agent;
+}
+
+/**
+ * 获取系统信息
+ */
+function get_os()
+{
+    $agent = $_SERVER['HTTP_USER_AGENT'];
+    $os    = false;
+    if (eregi('win', $agent) && strpos($agent, '95')) {
+        $os = 'Windows 95';
+    } elseif (eregi('win 9x', $agent) && strpos($agent, '4.90')) {
+        $os = 'Windows ME';
+    } elseif (eregi('win', $agent) && ereg('98', $agent)) {
+        $os = 'Windows 98';
+    } elseif (eregi('win', $agent) && eregi('nt 5.1', $agent)) {
+        $os = 'Windows XP';
+    } elseif (eregi('win', $agent) && eregi('nt 5.2', $agent)) {
+        $os = 'Windows 2003';
+    } elseif (eregi('win', $agent) && eregi('nt 5', $agent)) {
+        $os = 'Windows 2000';
+    } elseif (eregi('win', $agent) && eregi('nt', $agent)) {
+        $os = 'Windows NT';
+    } elseif (eregi('win', $agent) && ereg('32', $agent)) {
+        $os = 'Windows 32';
+    } elseif (eregi('linux', $agent)) {
+        $os = 'Linux';
+    } elseif (eregi('unix', $agent)) {
+        $os = 'Unix';
+    } elseif (eregi('sun', $agent) && eregi('os', $agent)) {
+        $os = 'SunOS';
+    } elseif (eregi('ibm', $agent) && eregi('os', $agent)) {
+        $os = 'IBM OS/2';
+    } elseif (eregi('Mac', $agent) && eregi('PC', $agent)) {
+        $os = 'Macintosh';
+    } elseif (eregi('PowerPC', $agent)) {
+        $os = 'PowerPC';
+    } elseif (eregi('AIX', $agent)) {
+        $os = 'AIX';
+    } elseif (eregi('HPUX', $agent)) {
+        $os = 'HPUX';
+    } elseif (eregi('NetBSD', $agent)) {
+        $os = 'NetBSD';
+    } elseif (eregi('BSD', $agent)) {
+        $os = 'BSD';
+    } elseif (ereg('OSF1', $agent)) {
+        $os = 'OSF1';
+    } elseif (ereg('IRIX', $agent)) {
+        $os = 'IRIX';
+    } elseif (eregi('FreeBSD', $agent)) {
+        $os = 'FreeBSD';
+    } elseif (eregi('teleport', $agent)) {
+        $os = 'teleport';
+    } elseif (eregi('flashget', $agent)) {
+        $os = 'flashget';
+    } elseif (eregi('webzip', $agent)) {
+        $os = 'webzip';
+    } elseif (eregi('offline', $agent)) {
+        $os = 'offline';
+    } else {
+        $os = 'Unknown';
+    }
+
+    return $os;
+}
+
+/**
+ * 获取浏览器信息
+ */
+function get_user_browser()
+{
+    if (strpos($_SERVER['HTTP_USER_AGENT'], 'Maxthon')) {
+        $browser = 'Maxthon';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 12.0')) {
+        $browser = 'IE12.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 11.0')) {
+        $browser = 'IE11.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 10.0')) {
+        $browser = 'IE10.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 9.0')) {
+        $browser = 'IE9.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 8.0')) {
+        $browser = 'IE8.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 7.0')) {
+        $browser = 'IE7.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE 6.0')) {
+        $browser = 'IE6.0';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'NetCaptor')) {
+        $browser = 'NetCaptor';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Netscape')) {
+        $browser = 'Netscape';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Lynx')) {
+        $browser = 'Lynx';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Opera')) {
+        $browser = 'Opera';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Chrome')) {
+        $browser = 'Chrome';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Firefox')) {
+        $browser = 'Firefox';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'Safari')) {
+        $browser = 'Safari';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'iphone') || strpos($_SERVER['HTTP_USER_AGENT'], 'ipod')) {
+        $browser = 'iphone';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'ipad')) {
+        $browser = 'iphone';
+    } elseif (strpos($_SERVER['HTTP_USER_AGENT'], 'android')) {
+        $browser = 'android';
+    } else {
+        $browser = 'other';
+    }
+
+    return $browser;
+}
+
+/**
+ * @param $val
+ * @param $data
+ */
+function show_auth_check($val, $data)
+{
+    if (strpos($data, "#" . $val . "#") > -1) {
+        echo 'checked';
+    } else {
+        if (strpos($data, "#" . $val . "=") > -1) {
+            echo 'checked';
+        }
+    }
+}
+
+/**
+ * @param $val
+ * @param $key
+ *
+ * @return mixed
+ */
+function echo_json_key($val, $key)
+{
+    $json = json_decode($val);
+    $str  = ['pwd' => $json->pwd, 'user' => $json->user];
+
+    return isset($str[$key]) ? $str[$key] : '';
+
+}
+
+/**
+ * @param $val
+ * @param $data
+ *
+ * @return mixed
+ */
+function show_auth_data($val, $data)
+{
+    $tmp = explode('#', $data);
+    foreach ($tmp as $v) {
+        if ($v != '#' && $v != '') {
+            $arr[] = $v;
+        }
+    }
+    foreach ($arr as $v) {
+        $temp = explode('=', $v);
+        if (count($temp) > 1 && $temp[0] == $val) {
+            //$dt=json_decode($temp[1]);
+            return $temp[1];
+            break;
+        }
+    }
+
+}
+
+/**
+ * 导出数据为excel表格
+ *
+ * @param array  $data     一个二维数组,结构如同从数据库查出来的数组
+ * @param array  $title    excel的第一行标题,一个数组,如果为空则没有标题
+ * @param string $filename 下载的文件名
+ *                         $stu = M ('User');
+ *                         $arr = $stu -> select();
+ *                         exportexcel($arr,array('id','账户','密码','昵称'),'文件名!');
+ */
+function export_excel($data = [], $title = [], $filename = 'report')
+{
+    header("Content-type:application/octet-stream");
+    header("Accept-Ranges:bytes");
+    header("Content-type:application/vnd.ms-excel");
+    header("Content-Disposition:attachment;filename=" . $filename . ".xls");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+    //导出xls 开始
+    if (!empty($title)) {
+        foreach ($title as $k => $v) {
+            $title[$k] = iconv("UTF-8", "GB2312", $v);
+
+        }
+        $title = implode("\t", $title);
+        echo "$title\n";
+    }
+    if (!empty($data)) {
+        foreach ($data as $key => $val) {
+            foreach ($val as $ck => $cv) {
+                $data[$key][$ck] = iconv("UTF-8", "GB2312", $cv);
+            }
+            $data[$key] = implode("\t", $data[$key]);
+
+        }
+        echo implode("\n", $data);
+    }
+}
+
+/**
+ * 输出excel，配置标题和匹配的字段
+ *
+ * @param array  $data
+ * @param array  $title
+ * @param string $filename
+ */
+function export_excel_by_key($data = [], $title = [], $filename = 'report')
+{
+    header("Content-type:application/octet-stream");
+    header("Accept-Ranges:bytes");
+    header("Content-type:application/vnd.ms-excel");
+    header("Content-Disposition:attachment;filename=" . $filename . ".xls");
+    header("Pragma: no-cache");
+    header("Expires: 0");
+    //导出xls 开始
+    if (!empty($title)) {
+        foreach ($title as $k) {
+            //$excel_head[]=iconv("UTF-8", "GB2312",$k[0]);
+            $excel_head[] = iconv("UTF-8", "GB2312", $k[0]);
+            $field[]      = $k[1];
+        }
+        $excel_head = implode("\t", $excel_head);
+        echo $excel_head . "\n";
+    }
+    if (!empty($data)) {
+        foreach ($data as $obj) {
+            $line = null;
+            foreach ($field as $fv) {
+                $line[] = iconv("UTF-8", "GB2312", $obj[$fv]);
+                //$Line[]=$data[$key][$fv];
+            }
+            $line = implode("\t", $line);
+            echo $line . "\n";
+        }
+    }
+}
+
+/**
+ * @param $pos
+ *
+ * @return string
+ */
+function sms_state($pos)
+{
+    $str = [0 => '等待发送', 1 => '已发送', 2 => '发送失败,等待重发'];
+
+    return isset($str[$pos]) ? $str[$pos] : '等待发送';
+}
+
+/**
+ * @param $id
+ *
+ * @return string
+ */
+function get_cate_log($id)
+{
+    $str = [0 => '图文', 1 => '链接', 2 => '电话', 3 => '地图导航'];
+
+    return isset($str[$id]) ? $str[$id] : '图文';
+}
+
+/**
+ * @param $list
+ * @param $id
+ *
+ * @return string
+ */
+function get_art_cate($list, $id)
+{
+    $rs = "";
+    foreach ($list as $k => $v) {
+        if ($v['id'] == $id) {
+            $rs = $v['title'];
+            break;
+        }
+    }
+
+    return $rs;
+}
+
+/**
+ * @param $id
+ *
+ * @return string
+ */
+function get_news_mode($id)
+{
+    $str = [1 => '新闻中心', 2 => '产品动态'];
+
+    return isset($str[$id]) ? $str[$id] : '';
+}
+
+/**
+ * @param $vo
+ * @param $cid
+ *
+ * @return string
+ */
+function show_class_common($vo, $cid)
+{
+    $html2 = '';
+    switch ($vo['mode']) {
+        case 0:
+            $html2 .= U('Api/Wap/lists', ['classid' => $vo['id'], 'sid' => $vo['uid'], 'cid' => $cid]);
+
+            return $html2;
+            break;
+        case 1:
+            $html2 = $vo['titleurl'];
+
+            return $html2;
+            break;
+        case 2:
+            $html2 .= "tel:" . $vo['tel'];
+
+            return $html2;
+            break;
+        case 3:
+            //http://api.map.baidu.com/marker?location=40.047669,116.313082&title=我的位置&content=百度奎科大厦&output=html&src=yourComponyName|yourAppName
+            //http://api.map.baidu.com/marker?location=39.892963,116.313504&title=%E5%BE%AE%E7%9B%9F&name=%E5%BE%AE%E7%9B%9F&content=%E4%B8%8A%E6%B5%B7%E5%B8%82%E6%9D%A8%E6%B5%A6%E5%8C%BA%E4%BA%94%E8%A7%92%E5%9C%BA&output=html&src=weiba|weiweb
+            //坐标是纬度进度
+            $url = "http://api.map.baidu.com/marker?location=" . $vo['point_y'] . "," . $vo['point_x'] . "&title=" . '福清' . "&content=" . "福清市" . "&output=html&src=weiyibai|weiyibai";
+
+            return $url;
+            break;
+
+    }
+
+}
+
+/**
+ * @param $vo
+ *
+ * @return string
+ */
+function show_map_url($vo)
+{
+    //dump($vo);
+    return "http://api.map.baidu.com/marker?location=" . $vo['point_y'] . "," . $vo['point_x'] . "&title=" . urlencode($vo['shop_name']) . "&content=" . urlencode($vo['address']) . "&output=html&src=weiyibai|weiyibai";
+}
+
+/**
+ * @param $vo
+ *
+ * @return string
+ */
+function show_map_url_shop($vo)
+{
+    //dump($vo);
+    return "http://api.map.baidu.com/marker?location=" . $vo['point_y'] . "," . $vo['point_x'] . "&title=" . urlencode($vo['shop_name']) . "&content=" . urlencode($vo['shopaddress']) . "&output=html&src=weiyibai|weiyibai";
+}
+
+/**
+ * @return string
+ */
+function get_ser_data()
+{
+    $data['host']   = $_SERVER['HTTP_HOST'];
+    $data['server'] = $_SERVER['SERVER_NAME'];
+    $data['soft']   = $_SERVER['SERVER_SOFTWARE'];
+    $data['ip']     = $_SERVER['SERVER_ADDR'];
+    $data['port']   = $_SERVER['port'];
+    $data['doc']    = $_SERVER['DOCUMENT_ROOT'];
+
+    return base64_encode(json_encode($data));
+}
+
+/**
+ * @return string
+ */
+function get_version()
+{
+    return json_encode(['auth' => get_ser_data(), 'ver' => '5910416']);
+}
+
+/**
+ * @param $info
+ *
+ * @return string
+ */
+function cutNewsInfo($info)
+{
+    $str = strip_tags($info);
+
+    return substr($str, 0, 20);
 }
