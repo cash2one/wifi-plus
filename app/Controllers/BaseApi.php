@@ -14,9 +14,9 @@ class BaseApi extends Base
     public $agent    = null;
     public $tmplname = "";
 
-    public function __construct()
+    public function initialization()
     {
-        parent::__construct();
+        parent::initialization();
         $this->browser = getUserBrowser();
         $this->agent   = getAgent();
     }

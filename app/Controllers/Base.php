@@ -21,26 +21,31 @@ class Base extends YP_Controller
      */
     public $uid;
 
-    protected function _initialize()
+    /**
+     * 构造函数
+     */
+    public function initialization()
     {
+        parent::initialization();
         //读取模板主题路径
         $theme_path = $this->_getThemePath();
-        $public     = [
+        $this->_isLogin();
+        $public = [
             'css'  => $this->p . '/UI/Public/css',
             'js'   => $this->p . '/UI/Public/js',
             'img'  => $this->p . '/UI/Public/images/',
             'root' => $this->p . '/UI/Public'
         ];
-        $theme      = [
+        $theme  = [
             'css'  => $theme_path . '/style/css',
             'js'   => $theme_path . '/style/js',
             'img'  => $theme_path . '/style/images',
             'root' => $theme_path . '/'
         ];
-        $style      = ['P' => $public, 'T' => $theme];
+        $style  = ['P' => $public, 'T' => $theme];
         $this->assign('Theme', $style);
         $this->assign('action', $this->getActionName());
-        $this->uid = (isset($_SESSION['uid']) && $_SESSION['uid']) ? $_SESSION['uid'] : 0;
+        $this->uid = (isset($_SESSION['uid']) && $_SESSION['uid']) ? $_SESSION['uid'] : 20;
 
     }
 
@@ -51,13 +56,16 @@ class Base extends YP_Controller
      */
     private function _getThemePath()
     {
-        $theme = C('DEFAULT_THEME');
+        $theme = 'default';
         $group = defined('GROUP_NAME') ? GROUP_NAME . '/' : '';
-        if (1 == C('APP_GROUP_MODE')) { // 独立分组模式
-            return $theme_path = '/' . dirname(BASE_LIB_PATH) . '/' . $group . basename(TMPL_PATH) . '/' . $theme;
-        } else {
-            return $theme_path = '/' . basename(TMPL_PATH) . '/' . $group . $theme;
-        }
+        // 模板目录
+        //        define('TMP_PATH', __DIR__ . DIRECTORY_SEPARATOR . 'UI' . DIRECTORY_SEPARATOR);
+        //        return $theme_path = '/' . basename(TMP_PATH) . '/' . $group . $theme;
+        //        if (1 == C('APP_GROUP_MODE')) { // 独立分组模式
+        //            return $theme_path = '/' . dirname(BASE_LIB_PATH) . '/' . $group . basename(TMPL_PATH) . '/' . $theme;
+        //        } else {
+        //            return $theme_path = '/' . basename(TMPL_PATH) . '/' . $group . $theme;
+        //        }
     }
 
     /**
@@ -201,7 +209,7 @@ class Base extends YP_Controller
     /**
      * 检测是否登录
      */
-    public function isLogin()
+    private function _isLogin()
     {
         if (!isset($_SESSION['uid']) || !$_SESSION['uid']) {
             $url = 'http://' . $_SERVER['HTTP_HOST'];

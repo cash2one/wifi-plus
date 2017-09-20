@@ -22,10 +22,10 @@ class BaseAdmin extends Base
     /**
      * 初始化
      */
-    protected function _initialize()
+    public function initialization()
     {
         // 执行父级的_initialize方法
-        parent::_initialize();
+        parent::initialization();
         //判断权限
         if (C('USER_AUTH_ON') && !in_array(MODULE_NAME, explode(',', C('NOT_AUTH_MODULE')))) {
             import("@.ORG.WIFIRBAC");

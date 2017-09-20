@@ -27,10 +27,9 @@ class BaseUser extends Base
     /**
      *
      */
-    protected function _initialize()
+    public function initialization()
     {
-        parent::_initialize();
-        $this->isLogin();
+        parent::initialization();
     }
     
 }

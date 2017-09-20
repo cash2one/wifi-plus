@@ -15,9 +15,9 @@ class BaseAgent extends Base
     /**
      * 初始化
      */
-    protected function _initialize()
+    public function initialization()
     {
-        parent::_initialize();
+        parent::initialization();
         if (!session('aid') || session('aid') == null || session('aid') == '') {
             $this->redirect('index/index/alog');
         } else {
