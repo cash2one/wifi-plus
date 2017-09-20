@@ -11,8 +11,7 @@
         "doctrine/orm": "^2.5",
         "symfony/yaml": "*",
         "symfony/console": "~2.0",
-        "packaged/thrift": "0.10.*",
-        "php-amqplib/php-amqplib": ""
+        "packaged/thrift": "0.10.*"
     },
     "authors": [
         {
