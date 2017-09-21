@@ -30,21 +30,21 @@ class Base extends YP_Controller
         //读取模板主题路径
         $theme_path = $this->_getThemePath();
         $this->_isLogin();
-        $public = [
-            'css'  => $this->p . '/UI/Public/css',
-            'js'   => $this->p . '/UI/Public/js',
-            'img'  => $this->p . '/UI/Public/images/',
-            'root' => $this->p . '/UI/Public'
-        ];
-        $theme  = [
-            'css'  => $theme_path . '/style/css',
-            'js'   => $theme_path . '/style/js',
-            'img'  => $theme_path . '/style/images',
-            'root' => $theme_path . '/'
-        ];
-        $style  = ['P' => $public, 'T' => $theme];
-        $this->assign('Theme', $style);
-        $this->assign('action', $this->getActionName());
+        //        $public = [
+        //            'css'  => $this->p . '/UI/Public/css',
+        //            'js'   => $this->p . '/UI/Public/js',
+        //            'img'  => $this->p . '/UI/Public/images/',
+        //            'root' => $this->p . '/UI/Public'
+        //        ];
+        //        $theme  = [
+        //            'css'  => $theme_path . '/style/css',
+        //            'js'   => $theme_path . '/style/js',
+        //            'img'  => $theme_path . '/style/images',
+        //            'root' => $theme_path . '/'
+        //        ];
+        //        $style  = ['P' => $public, 'T' => $theme];
+        //        $this->assign('Theme', $style);
+        //        $this->assign('action', $this->getActionName());
         $this->uid = (isset($_SESSION['uid']) && $_SESSION['uid']) ? $_SESSION['uid'] : 20;
 
     }

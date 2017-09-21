@@ -674,3 +674,24 @@ function is_phone($val)
     return false;
 
 }
+
+/**
+ * 验证url
+ *
+ * @param $val
+ *
+ * @return bool
+ */
+function is_Url($val){
+    $val = trim($val);
+    $tmpUrl1 = substr($val,0,7);
+    if($tmpUrl1 == 'http://'){
+        return true;
+    }
+    $tmpUrl2 = substr($val,0,8);
+    if($tmpUrl2 == 'https://'){
+        return true;
+    }
+    return false;
+
+}
