@@ -9,7 +9,7 @@
 namespace App\Controllers\Agent;
 
 use Illuminate\Database\Capsule\Manager as DB;
-use Agent\AdModel;
+use AdModel;
 use App\Controllers\BaseAgent;
 
 /**
@@ -175,7 +175,7 @@ class AdManage extends BaseAgent
         $this->display();
 
     }
-    
+
     /**
      * 获得广告报表
      *
