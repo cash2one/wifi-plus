@@ -18,30 +18,24 @@ use App\Controllers\BaseApi;
 class Auth extends BaseApi
 {
     private $shop   = false;
-    private $tplkey = "";
-
-    private function isonline($val)
-    {
-        import("ORG.Util.Date");
-        $dt   = new Date (time());
-        $left = $dt->dateDiff($val, 's'); //默认7天试用期
-        return $left;
-
-    }
-
+    private $tplkey = '';
     private $token;
     private $mac;
     private $ip;
     private $gw_id;
 
+    /**
+     *
+     */
     public function index()
     {
-        if (!empty ($_REQUEST ['ip'])) {
-            $this->ip = $_REQUEST ['ip'];
+
+        if (!empty($_REQUEST['ip'])) {
+            $this->ip = $_REQUEST['ip'];
 
         }
-        if (!empty ($_REQUEST ['gw_id'])) {
-            $this->gw_id = $_REQUEST ['gw_id'];
+        if (!empty($_REQUEST['gw_id'])) {
+            $this->gw_id = $_REQUEST['gw_id'];
 
         }
         $this->mac = '';
@@ -102,72 +96,11 @@ class Auth extends BaseApi
                     }
                 }
             }
-            //			else if (count ( $tks ) == 4 && count($tks)>1) {//微信可上网5分钟
-            //
-            //				$t = time () - $tks [2];
-            //				if ($t < 5 * 60) {
-            //					echo ("Auth: 1n");
-            //					echo ("Messages: Allow Accessn");
-            //				} else {
-            //					echo ("Auth: 0n");
-            //					echo ("Messages: No Accessn");
-            //				}
-            //				exit ();
-            //			}
             else {
                 echo("Auth: 0n");
                 echo("Messages: No Accessn");
                 exit ();
             }
-            /*
-             $tk=$_REQUEST['token'];
-             $db=D('Member');
-             $where['token']=$tk;
-             $user=$db->where($where)->find();
-
-
-             if($user==false){
-                //不存在，不允许上网
-
-                echo ("Auth: 0n");
-                echo ("Messages: No Accessn");
-                }else{
-                //存在,更新信息
-
-                //log::write(($user['online_time']-time())."秒时间戳");
-                if($user['online_time']!=""){
-                $lf=$user['online_time']-time();
-                if($lf<0){
-                //log::write('超时了');
-                echo ("Auth: 0n");
-                echo ("Messages: No Accessn");
-                exit;
-                }else{
-
-                echo ("Auth: 1n");
-                echo ("Messages: Allow Accessn");
-                $data['mac']=$this->mac;
-                $data['login_ip']=$this->ip;
-                $data['login_count']=$user['login_count']+1;
-                $data['login_time']=time();
-                $db->where($where)->save($data);
-                exit;
-                }
-                }else{
-                //log::write('不限制');
-                $this->token=$tk;
-                echo ("Auth: 1n");
-                echo ("Messages: Allow Accessn");
-                $data['mac']=$this->mac;
-                $data['login_ip']=$this->ip;
-                $data['login_count']=$user['login_count']+1;
-                $data['login_time']=time();
-                $db->where($where)->save($data);
-                }
-
-
-                }
-                */
         } else {
             echo("Auth: 0n");
             echo("Messages: No Accessn");

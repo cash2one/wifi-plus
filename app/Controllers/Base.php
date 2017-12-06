@@ -45,7 +45,7 @@ class Base extends YP_Controller
         //        $style  = ['P' => $public, 'T' => $theme];
         //        $this->assign('Theme', $style);
         //        $this->assign('action', $this->getActionName());
-        $this->uid = (isset($_SESSION['uid']) && $_SESSION['uid']) ? $_SESSION['uid'] : 20;
+        $this->uid = $_SESSION['uid'] ?? 20;
 
     }
 
@@ -82,30 +82,38 @@ class Base extends YP_Controller
         if (is_null($_FILES ['img'] ['name']) || $_FILES ['img'] ['name'] == "") {
             return [null, "没有选择图片,上传失败"];
         }
-        $storeType = C('STORE_TYPE');
+        $storeType = getenv('STORE_TYPE');
         if ($storeType == 1) {
-            import('ORG.Net.UploadFile');
-            $upload            = new UploadFile ();
-            $upload->maxSize   = C('AD_SIZE');
-            $upload->allowExts = C('AD_IMGEXT');
-            $upload->savePath  = C('AD_SAVE');
-            if (!$upload->upload()) {
-                return [null, $upload->getErrorMsg()];
-            } else {
-                $info     = $upload->getUploadFileInfo();
-                $savename = $info [0] ['savename'];
-                $key      = trim($info [0] ['savepath'], '.') . $savename;
-
-                return [['key' => $key], null];
+            $subDir    = date('Y/m/d', time());
+            $file      = pathinfo($_FILES['img']['name']);
+            $uploadDir = FRONT_PATH . '/Upload/ad/' . $subDir;
+            $upload    = new \YP\Libraries\YP_Upload($_FILES['img']['tmp_name'], time() . '.' . $file['extension']);
+            $upload->move($uploadDir);
+            if ($upload->getError()) {
+                call_back(2, '', json_encode($upload->getError()));
             }
+            //            import('ORG.Net.UploadFile');
+            //            $upload            = new UploadFile ();
+            //            $upload->maxSize   = C('AD_SIZE');
+            //            $upload->allowExts = C('AD_IMGEXT');
+            //            $upload->savePath  = C('AD_SAVE');
+            //            if (!$upload->upload()) {
+            //                return [null, $upload->getErrorMsg()];
+            //            } else {
+            //                $info     = $upload->getName();
+            $save_name = $upload->getName();
+            $key       = '/Upload/ad/' . $subDir;;
+
+            return $key;
+            //            }
         } else if ($storeType == 2) {
-            import("qiniu.io", dirname(__FILE__), '.php');
-            import("qiniu.rs", dirname(__FILE__), '.php');
+            require APP_PATH . 'ThirdParty/QiNiu/io.php';
+            require APP_PATH . 'ThirdParty/QiNiu/rs.php';
             $key1      = md5($uid . time()) . $file_name;
-            $qiniu     = C('QINIU');
-            $accessKey = $qiniu ['accessKey'];
-            $secretKey = $qiniu ['secretKey'];
-            $bucket    = $qiniu ['bucket'];
+            $qi_niu    = getenv('QINIU');
+            $accessKey = $qi_niu ['accessKey'];
+            $secretKey = $qi_niu ['secretKey'];
+            $bucket    = $qi_niu ['bucket'];
             Qiniu_SetKeys($accessKey, $secretKey);
             $putPolicy       = new Qiniu_RS_PutPolicy ($bucket);
             $upToken         = $putPolicy->Token(null);
@@ -115,18 +123,18 @@ class Base extends YP_Controller
 
             return $rs;
         } else { //百度
-            import("Baidu.bcs", dirname(__FILE__));
+            require APP_PATH . 'ThirdParty/BaiDu/bcs.php';
             $bsc       = C('BSC');
             $key1      = md5($uid . time()) . $file_name;
             $accessKey = $bsc ['accessKey'];
             $secretKey = $bsc ['secretKey'];
             $bucket    = $bsc ['bucket'];
             $host      = $bsc ['host'];
-            $baidu_bcs = new BaiduBCS ($accessKey, $secretKey, $host);
-            $response  = $baidu_bcs->get_bucket_acl($bucket);
+            $baiDuBcs  = new BaiduBCS ($accessKey, $secretKey, $host);
+            $response  = $baiDuBcs->get_bucket_acl($bucket);
             if ($response->status == '403') {
                 $acl      = BaiduBCS::BCS_SDK_ACL_TYPE_PRIVATE;
-                $response = $baidu_bcs->create_bucket($bucket, $acl);
+                $response = $baiDuBcs->create_bucket($bucket, $acl);
             }
             if ($response->status != '200') {
                 return [null, '创建bucket失败'];
@@ -136,7 +144,7 @@ class Base extends YP_Controller
             $opt [BaiduBCS::IMPORT_BCS_LOG_METHOD] = "bs_log";
             $opt ['curlopts']                      = [CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 1800];
             //print_r($tmp_file);exit;
-            $response = $baidu_bcs->create_object($bucket, '/' . $key1, $tmp_file, $opt);
+            $response = $baiDuBcs->create_object($bucket, '/' . $key1, $tmp_file, $opt);
             if ($response->status == '200') {
                 return [['key' => $key1], null];
             } else {
@@ -148,21 +156,22 @@ class Base extends YP_Controller
 
     /**
      * 生成下载连接
-     * Enter description here ...
      *
-     * @param unknown_type $version_id
+     * @param $file_name
+     *
+     * @return string
      */
     protected function downloadUrl($file_name)
     {
-        $storeType = C('STORE_TYPE');
+        $storeType = getenv('STORE_TYPE');
         if ($storeType == 1) {
             return $file_name;
         } else if ($storeType == 2) {
-            import("qiniu.rs", dirname(__FILE__), '.php');
-            $qiniu     = C('QINIU');
-            $accessKey = $qiniu ['accessKey'];
-            $secretKey = $qiniu ['secretKey'];
-            $domain    = $qiniu ['domain'];
+            require APP_PATH . 'ThirdParty/QiNiu/rs.php';
+            $qi_niu    = getenv('QINIU');
+            $accessKey = $qi_niu ['accessKey'];
+            $secretKey = $qi_niu ['secretKey'];
+            $domain    = $qi_niu ['domain'];
             Qiniu_SetKeys($accessKey, $secretKey);
             $baseUrl    = Qiniu_RS_MakeBaseUrl($domain, $file_name);
             $getPolicy  = new Qiniu_RS_GetPolicy ();
@@ -170,7 +179,7 @@ class Base extends YP_Controller
 
             return $privateUrl;
         } else {
-            return 'http://' . $_SERVER ['SERVER_NAME'] . $this->p . '/index.php/download/img?img_name=' . $file_name;
+            return 'http://' . $_SERVER['SERVER_NAME'] . $this->p . '/index.php/download/img?img_name=' . $file_name;
 
         }
     }

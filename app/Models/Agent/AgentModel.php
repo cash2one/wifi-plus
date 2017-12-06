@@ -2,26 +2,30 @@
 /**
  * User: yongli
  * Date: 17/9/19
- * Time: 10:24
+ * Time: 10:19
  * Email: yong.li@szypwl.com
  * Copyright: 深圳优品未来科技有限公司
  */
+namespace Agent;
+
 use YP\Core\YP_Model;
 
 /**
- * Class RouteMapModel
+ * Class AgentModel
  *
  * @package Agent
  */
-class RouteMapModel extends YP_Model
+class AgentModel extends YP_Model
 {
-    protected $table = 'wifi_route_map';
+    protected $table = 'wifi_agent';
 
     /**
+     * 代理等级
+     *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function getShop()
+    public function getAgentLevel()
     {
-        return $this->hasMany('\ShopMode', 'id', 'shop_id');
+        return $this->hasMany('\WifiAdmin\AgentLevelModel', 'id', 'level');
     }
 }

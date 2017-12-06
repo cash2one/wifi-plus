@@ -695,3 +695,16 @@ function is_Url($val){
     return false;
 
 }
+
+/**
+ * 验证密码
+ *
+ * @param $val
+ *
+ * @return bool
+ */
+function validate_pwd($val){
+    if(ereg("^[a-zA-Z0-9_]{4,20}$", $val))
+        return true;
+    return false;
+}

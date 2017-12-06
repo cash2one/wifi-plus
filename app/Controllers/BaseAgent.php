@@ -13,12 +13,22 @@ class BaseAgent extends Base
     public $aid;//代理商用户ID
 
     /**
+     * 每页显示条数
+     * 
+     * @var int
+     */
+    public $perPage = 15;
+
+    /**
      * 初始化
      */
     public function initialization()
     {
         parent::initialization();
-        if (!session('aid') || session('aid') == null || session('aid') == '') {
+        $this->page    = $this->request->getGet('per_page') ? $this->request->getGet('per_page') :  $this->page;
+
+        $this->perPage = $this->request->getGet('perPage') ? $this->request->getGet('perPage') : $this->perPage;
+        if (!isset($_SESSION['aid']) || !$_SESSION['aid']) {
             $this->redirect('index/index/alog');
         } else {
             $this->aid = session('aid');
