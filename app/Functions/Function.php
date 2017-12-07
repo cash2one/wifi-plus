@@ -682,16 +682,18 @@ function is_phone($val)
  *
  * @return bool
  */
-function is_Url($val){
-    $val = trim($val);
-    $tmpUrl1 = substr($val,0,7);
-    if($tmpUrl1 == 'http://'){
+function is_Url($val)
+{
+    $val     = trim($val);
+    $tmpUrl1 = substr($val, 0, 7);
+    if ($tmpUrl1 == 'http://') {
         return true;
     }
-    $tmpUrl2 = substr($val,0,8);
-    if($tmpUrl2 == 'https://'){
+    $tmpUrl2 = substr($val, 0, 8);
+    if ($tmpUrl2 == 'https://') {
         return true;
     }
+
     return false;
 
 }
@@ -703,8 +705,13 @@ function is_Url($val){
  *
  * @return bool
  */
-function validate_pwd($val){
-    if(ereg("^[a-zA-Z0-9_]{4,20}$", $val))
+function validate_pwd($val)
+{
+    if (ereg("^[a-zA-Z0-9_]{4,20}$", $val)) {
         return true;
+    }
+
     return false;
 }
+
+

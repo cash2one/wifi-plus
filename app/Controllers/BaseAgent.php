@@ -13,6 +13,13 @@ class BaseAgent extends Base
     public $aid;//代理商用户ID
 
     /**
+     * 当前页码
+     *
+     * @var int
+     */
+    public $page = 1;
+
+    /**
      * 每页显示条数
      * 
      * @var int

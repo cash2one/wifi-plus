@@ -15,6 +15,20 @@ class Base extends YP_Controller
     public $p = '';//正式环境中这里要改成''
 
     /**
+     * 当前页码
+     *
+     * @var int
+     */
+    public $page = 1;
+
+    /**
+     * 每页显示条数
+     *
+     * @var int
+     */
+    public $perPage = 15;
+
+    /**
      * 用户ID
      *
      * @var
@@ -27,9 +41,11 @@ class Base extends YP_Controller
     public function initialization()
     {
         parent::initialization();
+        $this->page    = $this->request->getGet('per_page') ? $this->request->getGet('per_page') : $this->page;
+        $this->perPage = $this->request->getGet('perPage') ? $this->request->getGet('perPage') : $this->perPage;
         //读取模板主题路径
         $theme_path = $this->_getThemePath();
-        $this->_isLogin();
+        $this->isLogin();
         //        $public = [
         //            'css'  => $this->p . '/UI/Public/css',
         //            'js'   => $this->p . '/UI/Public/js',
@@ -101,7 +117,6 @@ class Base extends YP_Controller
             //                return [null, $upload->getErrorMsg()];
             //            } else {
             //                $info     = $upload->getName();
-            $save_name = $upload->getName();
             $key       = '/Upload/ad/' . $subDir;;
 
             return $key;
@@ -124,7 +139,7 @@ class Base extends YP_Controller
             return $rs;
         } else { //百度
             require APP_PATH . 'ThirdParty/BaiDu/bcs.php';
-            $bsc       = C('BSC');
+            $bsc       = getenv('BSC');
             $key1      = md5($uid . time()) . $file_name;
             $accessKey = $bsc ['accessKey'];
             $secretKey = $bsc ['secretKey'];
@@ -137,21 +152,19 @@ class Base extends YP_Controller
                 $response = $baiDuBcs->create_bucket($bucket, $acl);
             }
             if ($response->status != '200') {
-                return [null, '创建bucket失败'];
+                call_back(2, '', '创建bucket失败!');
             }
-            $opt                                   = [];
-            $opt ['acl']                           = BaiduBCS::BCS_SDK_ACL_TYPE_PUBLIC_WRITE;
-            $opt [BaiduBCS::IMPORT_BCS_LOG_METHOD] = "bs_log";
-            $opt ['curlopts']                      = [CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 1800];
-            //print_r($tmp_file);exit;
-            $response = $baiDuBcs->create_object($bucket, '/' . $key1, $tmp_file, $opt);
-            if ($response->status == '200') {
-                return [['key' => $key1], null];
-            } else {
-                return [null, '上传失败'];
+            $opt             = [];
+            $opt['acl']      = BaiduBCS::BCS_SDK_ACL_TYPE_PUBLIC_WRITE;
+            $opt['curlopts'] = [CURLOPT_CONNECTTIMEOUT => 10, CURLOPT_TIMEOUT => 1800];
+            //
+            $opt[BaiduBCS::IMPORT_BCS_LOG_METHOD] = 'bs_log';
+            $response                             = $baiDuBcs->create_object($bucket, '/' . $key1, $tmp_file, $opt);
+            if ($response->status != '200') {
+                call_back(2, '', '上传失败!');
             }
+            return $key1;
         }
-
     }
 
     /**
@@ -218,7 +231,7 @@ class Base extends YP_Controller
     /**
      * 检测是否登录
      */
-    private function _isLogin()
+    protected function isLogin()
     {
         if (!isset($_SESSION['uid']) || !$_SESSION['uid']) {
             $url = 'http://' . $_SERVER['HTTP_HOST'];

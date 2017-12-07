@@ -9,9 +9,9 @@
 namespace App\Controllers\Agent;
 
 use Agent\AgentModel;
+use WifiAdmin\AgentPay;
 use App\Controllers\BaseAgent;
 use Illuminate\Database\Capsule\Manager as DB;
-use WifiAdmin\AgentPay;
 
 /**
  * Class Index
