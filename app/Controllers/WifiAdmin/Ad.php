@@ -52,7 +52,7 @@ class AdAction extends BaseAdmin
         ]);
         $num      = $build->count();
         // 获得分页配置
-        $config = set_page_config($num, $this->url, 5, $this->perPage);
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
         // 实例化分页类
         $pagination = \Config\Services::pagination();
         // 初始化分页配置
@@ -135,7 +135,7 @@ class AdAction extends BaseAdmin
     {
         $this->display();
     }
-    
+
     /**
      * 编辑广告
      */
