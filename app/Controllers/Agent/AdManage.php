@@ -54,7 +54,7 @@ class AdManage extends BaseAgent
             }
         ]);
         $num   = $build->count();
-        // 商品数据
+        // 广告数据
         $result = $build->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
         // 获得分页配置
         $config = set_page_config($num, $this->url, 3, $this->perPage);

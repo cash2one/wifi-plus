@@ -16,26 +16,36 @@ class XmlSms
 {
     /**
      * 网关地址
+     *
+     * @var
      */
     public $url;
+
     /**
      * 帐号
+     *
+     * @var
      */
     public $user;
+
     /**
      * 密码
-     * Enter description here ...
+     *
      * @var unknown_type
      */
     public $password;
 
     /**
      * webservice客户端
+     *
+     * @var nusoap_client
      */
     public $soap;
-
+    
     /**
      * 默认命名空间
+     *
+     * @var string
      */
     public $namespace = 'http://tempuri.org/';
 
@@ -98,11 +108,21 @@ class XmlSms
 
     }
 
+    /**
+     * 设置账号
+     *
+     * @param $u
+     */
     public function setUser($u)
     {
         $this->user = $u;
     }
 
+    /**
+     * 设置密码
+     *
+     * @param $p
+     */
     public function setPwd($p)
     {
         $this->password = $p;
@@ -119,6 +139,9 @@ class XmlSms
         $this->soap->xml_encoding = $this->incomingEncoding;
     }
 
+    /**
+     * @param $ns
+     */
     public function setNameSpace($ns)
     {
         $this->namespace = $ns;
@@ -130,7 +153,6 @@ class XmlSms
     }
 
     /**
-     *
      * 获取短信帐号余额
      */
     public function GetSmsAccount()
@@ -142,7 +164,6 @@ class XmlSms
     }
 
     /**
-     *
      * 获取短信单价
      */
     public function GetSmsPrice()
@@ -153,6 +174,14 @@ class XmlSms
         return $result['GetSmsPriceResult'];
     }
 
+    /**
+     * 发送短信
+     *
+     * @param $phones
+     * @param $msg
+     *
+     * @return mixed
+     */
     public function SendSms($phones, $msg)
     {
         $params = ['key' => $this->user, 'pwd' => $this->password, 'phone' => $phones, 'info' => $msg];

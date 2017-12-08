@@ -8,12 +8,13 @@
  */
 namespace App\Controllers\Index;
 
-use Api\CommentModel;
-use Api\MemberModel;
-use App\Controllers\Base;
+
 use ShopModel;
-use WifiAdmin\AuthListModel;
+use Api\MemberModel;
+use Api\CommentModel;
 use WifiAdmin\NoticeModel;
+use WifiAdmin\AuthListModel;
+use App\Controllers\Base;
 use Illuminate\Database\Capsule\Manager as DB;
 
 /**
@@ -808,7 +809,7 @@ class User extends Base
     {
         $param = $this->request->getGet();
         $sql   = $this->_getUserChartSql($param);
-        !$sql ? call_back(2, '', '参数不正确!');
+        !$sql ? call_back(2, '', '参数不正确!') : '';
         $data = DB::select($sql);
         switch (strtolower($param['mode'])) {
             case 'today' :
@@ -1082,9 +1083,7 @@ class User extends Base
                 $sql .= 'where a.id between 1 and  ' . date('t');
                 break;
             case 'query' :
-                $sdate = I('get . sdate');
-                $edate = I('get . edate');
-                import("ORG.Util.Date");
+//                import("ORG.Util.Date");
                 //$sdt=Date("Y-M-d",$sdate);
                 //$edt=Date("Y-M-d",$edate);
                 $dt      = new Date ($param['start_date']);
@@ -1107,7 +1106,7 @@ class User extends Base
     /**
      * 显示广告统计界面
      */
-    public function advrpt()
+    public function advRpt()
     {
         $this->assign('a', 'adv');
         $this->display();
@@ -1207,57 +1206,44 @@ class User extends Base
     }
 
     /**
-     *
      * 微信动态认证
      */
-    public function three_p()
+    public function threeP()
     {
-        $userM        = M('Shop');
-        $uid          = session('uid');
-        $where ['id'] = $uid;
         $post = $this->request->getPost();
         if ($post) {
-            $url   = $_POST ['t_wx_url'];
-            $token = $_POST ['t_wx_token'];
-            if ($url == "") {
-                $this->error('url不能为空');
+            if (!$post['t_wx_url']) {
+                call_back(2, '', 'url不能为空!');
             }
-            // if (isUrl ( $url )) {
-            // 	$this->error ( 'url格式不正确' );
-            // }
-            if ($token == "") {
-                $this->error('token不能为空');
+            if (!$post['t_wx_token']) {
+                call_back(2, '', 'token不能为空!');
             }
-            $echostr   = md5($token . time());
+            $echoStr   = md5($post['t_wx_token'] . time());
             $nonce     = mt_rand(1, 1000);
             $timestamp = time();
-            $tmpArr    = [$token, $timestamp, $nonce];
+            $tmpArr    = [$post['t_wx_token'], $timestamp, $nonce];
             sort($tmpArr, SORT_STRING);
             $tmpStr    = implode($tmpArr);
-            $signature = sha1($tmpStr);
-            $urls      = explode("?", $url);
-            $data      = 'timestamp = ' . $timestamp . ' & signature = ' . $signature . ' & nonce = ' . $nonce . ' & echostr = ' . $echostr;
-            if (isset ($urls [1])) {
-                $data = $data . ' & ' . $urls [1];
+            $urls      = explode('?', $post['t_wx_url']);
+            $data      = 'timestamp=' . $timestamp . ' &signature=' . sha1($tmpStr) . ' &nonce=' . $nonce . ' &echoStr=' . $echoStr;
+            if (isset($urls[1])) {
+                $data = $data . ' & ' . $urls[1];
             }
-            $url = $urls [0] . ' ? ' . $data;
-            //						print_r($url);exit;
-            $statu = file_get_contents($url);
-            if ($statu != $echostr) { //验证接口
-                $this->error('验证失败');
+            $url = $urls[0] . ' ? ' . $data;
+            $status = file_get_contents($url);
+            if ($status != $echoStr) { //验证接口
+                call_back(2, '', '验证失败!');
             }
-            //			$where ['id'] = $this->userid;
-            if ($userM->where($where)->save($_POST)) {
-                $this->success('验证成功');
-            } else {
-                $this->error('验证成功');
-            }
+            $status = ShopModel::whereId($this->uid)->update($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
         } else {
-            $info = $userM->where($where)->field('t_wx_url,t_wx_token,weixin_id,weixin_token')->find();
-            if (empty ($info) || empty ($info ['weixin_id'])) {
-                $info ['weixin_url'] = '';
+            $info = ShopModel::select(['t_wx_url','t_wx_token','wx_id','wx_token'])->whereId($this->uid)->get()->toArray();
+            $info = $info ? $info[0] : [];
+
+            if (!$info || !$info ['wx_id']) {
+                $info['wei_xin_url'] = '';
             } else {
-                $info ['weixin_url'] = 'http://' . $_SERVER ['SERVER_NAME'] . '/index.php/weichat/command/' . $info ['weixin_id'];
+                $info['wei_xin_url'] = 'http://' . $_SERVER ['SERVER_NAME'] . '/WeiXin/Command/' . $info['wx_id'];
             }
             $this->assign('info', $info);
             $this->display();
@@ -1265,39 +1251,32 @@ class User extends Base
     }
 
     /**
-     *
      * 微信接口
      */
-    public function wx_api()
+    public function wxApi()
     {
-        // 实例化一个对商户表的对象
-        $userM        = M('Shop');
-        $uid          = session('uid');
-        $where ['id'] = $uid;
-        if (isset ($_POST) && !empty ($_POST)) {
-            // 获得微信id
-            $weixin_id            = $_POST ['weixin_id'];
-            $where2 ['weixin_id'] = $weixin_id;
-            $info1                = $userM->where($where2)->field('id,weixin_id')->find();
-            if (!empty ($info1) && $info1 ['id'] != $uid) {
-                $this->error('微信原始ID已存在');
+        $post = $this->request->getPost();
+        if ($post) {
+            $info = ShopModel::select(['id','wx_id'])->whereWxId($post['wx_id'])->get()->toArray();
+            if (!$info && $info['id'] != $this->uid) {
+                call_back(2, '', '微信原始ID已存在!');
             }
-            if ($weixin_id == "") {
-                $this->error('微信原始ID不能为空');
+            if ($post['wx_id']) {
+                call_back(2, '', '微信原始ID不能为空!');
             }
-            $_POST ['weixin_token'] = md5($uid . time());
-            if ($userM->where($where)->save($_POST)) {
-                $this->success('保存成功');
-            } else {
-                $this->error('保存成功');
-            }
+            $post['wx_token'] = md5($this->uid . time());
+            $post['update_time'] = time();
+            $status = ShopModel::whereId($this->uid)->update($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
+
         } else {
             // 获得当前商户的微信url、微信钥密、微信id
-            $info = $userM->where($where)->field('t_wx_url,t_wx_token,weixin_id,weixin_token')->find();
-            if (empty ($info) || empty ($info ['weixin_id'])) {
-                $info ['weixin_url'] = '';
+            $info = ShopModel::select(['t_wx_url,t_wx_token,wx_id,wx_token'])->whereId($this->uid)->get()->toArray();
+            $info = $info ? $info[0] : [];
+            if (!$info || !$info['wx_id']) {
+                $info ['wei_xin_url'] = '';
             } else {
-                $info ['weixin_url'] = 'http://' . $_SERVER ['SERVER_NAME'] . '/index.php/weichat/command/' . $info ['weixin_id'];
+                $info ['wei_xin_url'] = 'http://' . $_SERVER ['SERVER_NAME'] . '/WeiXin/Command/' . $info['wx_id'];
             }
             $this->assign('info', $info);
             $this->display();

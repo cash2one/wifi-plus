@@ -8,13 +8,25 @@
  */
 namespace App\Controllers;
 
+use WifiAdmin\TreeNodeModel;
+
+/**
+ * Class BaseAdmin
+ *
+ * @package App\Controllers
+ */
 class BaseAdmin extends Base
 {
-    public $userid;
+    /**
+     * 用户ID
+     *
+     * @var
+     */
+    public $userId;
 
     public function doLoadID($id)
     {
-        $nav['m'] = $this->getActionName();
+        $nav['m'] = $this->controller;
         $nav['a'] = $id;
         $this->assign('nownav', $nav);
     }
@@ -28,8 +40,7 @@ class BaseAdmin extends Base
         parent::initialization();
         //判断权限
         if (C('USER_AUTH_ON') && !in_array(MODULE_NAME, explode(',', C('NOT_AUTH_MODULE')))) {
-            import("@.ORG.WIFIRBAC");
-            if (!WIFIRBAC::AccessDecision(GROUP_NAME)) {
+            if (!\WifiRbac::AccessDecision(GROUP_NAME)) {
                 //检查认证识别号
                 if (!$_SESSION [C('USER_AUTH_KEY')]) {
                     //跳转到认证网关
@@ -49,7 +60,7 @@ class BaseAdmin extends Base
                 }
 
             } else {
-                $this->userid = session(C('USER_AUTH_KEY'));
+                $this->userId = session(C('USER_AUTH_KEY'));
                 $this->loadMenu();
             }
 
@@ -62,21 +73,29 @@ class BaseAdmin extends Base
      */
     private function loadMenu()
     {
-        $where['status']   = 1;
-        $where['menuflag'] = 1;
-        $order['sort']     = 'asc';
-        $order['id']       = 'asc';
-        $nav               = M('treenode')->where($where)->order($order)->field('id,title,g,m,a,ico,single,pid,level')->select();
+        $where['status'] = 1;
+        $where['menu_flag'] = 1;
+        $order['sort'] = 'asc';
+        $order['id'] = 'asc';
+        $nav = TreeNodeModel::select([
+            'id',
+            'title',
+            'g',
+            'm',
+            'a',
+            'ico',
+            'single',
+            'pid',
+            'level'
+        ])->whereStatus(1)->whereMenuFlag(1)->orderBy(['sort' => 'asc', 'id' => 'asc'])->get()->toArray();
         $this->assign('nav', $nav);
-        if (session('adminmame') == C('SPECIAL_USER')) {
-            $ids = M('treenode')->field('id')->select();
-            foreach ($ids as $node) {
-                $access[] = $node['id'];
-            }
-            $this->assign('navids', $access);
+        if ($_SESSION['admin_mame'] == C('SPECIAL_USER')) {
+            $result = TreeNodeModel::select('id')->get()->toArray();
+            $access = array_column($result, 'id');
+            $this->assign('navIds', $access);
         } else {
-            $ids = WIFIRBAC::getAccessIDList($_SESSION[C('USER_AUTH_KEY')]);
-            $this->assign('navids', $ids);
+            $ids = \WifiRbac::getAccessIDList($_SESSION[C('USER_AUTH_KEY')]);
+            $this->assign('navIds', $ids);
         }
 
     }

@@ -202,7 +202,7 @@ class Web extends BaseUser
     }
 
     /**
-     *
+     * 文章列表
      */
     public function getArts()
     {

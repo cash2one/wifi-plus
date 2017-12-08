@@ -27,10 +27,10 @@ class Command extends Base
      */
     public function singCheckGet()
     {
-        $weiCode = $_GET ['wei_code'];
+        $weiCode = $this->request->getGet('wei_code');
         error_log('weiCode=' . $weiCode);
         if ($weiCode != null) {
-            $echoStr = $_GET ["echostr"];
+            $echoStr = $this->request->getGet('echoStr');
             if ($this->checkSignature($weiCode)) {
                 echo $echoStr;
                 exit;
@@ -56,8 +56,6 @@ class Command extends Base
         $shop = $this->loadShopInfo($weiCode);
         // 获得信息类型
         $MsgType = $postObj->MsgType;
-        // 记录错误信息
-        $result_error = '';
         if ($MsgType == 'event') {
             // 使用第三方接口
             $three = $this->sendThreePlatform($shop, $postStr);
@@ -100,7 +98,7 @@ class Command extends Base
                     // 获得发送方名称
                     $user = $this->loadUserInfo($fromUsername);
                     // 获得发送方的id
-                    $uid = $user['id'];
+                    $uid   = $user['id'];
                     $build = MemberModel::select();
                     $build->getConnection()->beginTransaction();
                     $status = \WifiAdmin\AuthListModel::whereUId($uid)->update(['uid' => $uid, 'is_delete' => 1]);
@@ -119,12 +117,12 @@ class Command extends Base
                         // 获得关键字
                         $key = trim($postObj->EventKey);
                         // 关键字不为空
-                        if ($key == "上网" || $key == "wifi") {
+                        if ($key == '上网' || $key == 'wifi') {
                             // 发送信息给用户
                             // 获取微信自动认证地址
                             $url = $this->getTokenUrl($shop, $fromUsername);
                             // 发送通过认证后的首条信息
-                            $contentStr = '欢迎光临 ' . $shop['shop_name'] . "，上网请直接点击：<a target=\"_blank\"  href=\"$url\">我要上网</a>,回复'wifi'或者'上网'可以再次获取上网权限,回复'帮助'获取更多信息";
+                            $contentStr = '欢迎光临 ' . $shop['shop_name'] . '，上网请直接点击：<a target="_blank"  href="' . $url . '">我要上网</a>,回复"wifi"或者"上网"可以再次获取上网权限,回复"帮助"获取更多信息';
                             $this->sendMsg($fromUsername, $toUsername, $contentStr);
                         }
                     }
@@ -136,11 +134,9 @@ class Command extends Base
         }
         // 获得发送过来得文本内容
         $keyword = trim($postObj->Content);
-        if (!empty ($keyword)) {
-            //$shop = $this->loadShopInfo ( $weiCode );
+        if ($keyword) {
             // 关键字为wifi或上网
             if ($keyword == 'wifi' || $keyword == '上网') {
-                // P($shop);exit;
                 // 当数据库中不存在该商家
                 if (empty($shop)) {
                     $result_error = '商家已经取消微信关注上网功能';
@@ -154,31 +150,31 @@ class Command extends Base
                         if (!empty ($rs)) {
                             echo $rs;
                         }
-                        exit ();
+                        exit();
                     }
                 }
                 // 获取微信自动认证地址
                 $url = $this->getTokenUrl($shop, $fromUsername);
                 // 发送通过认证后的首条信息
-                $contentStr = '欢迎光临 ' . $shop['shop_name'] . "，上网请直接点击：<a target=\"_blank\"  href=\"$url\">我要上网</a>,回复'wifi'或者'上网'可以再次获取上网权限,回复'帮助'获取更多信息";
+                $contentStr = '欢迎光临 ' . $shop['shop_name'] . '，上网请直接点击：<a target="_blank"  href="' . $url . '">我要上网</a>,回复"wifi"或者"上网"可以再次获取上网权限,回复"帮助"获取更多信息';
                 $this->sendMsg($fromUsername, $toUsername, $contentStr);
             } else if ($keyword == '帮助') {
-                $contentStr = "回复'wifi'或者'上网'可以获取上网权限";
+                $contentStr = '回复"wifi"或者"上网"可以获取上网权限';
                 $this->sendMsg($fromUsername, $toUsername, $contentStr);
             } else {
                 // 转发到第三方
                 $rs = $this->sendThreePlatform($shop, $postStr);
-                if (!empty ($rs)) {
+                if ($rs) {
                     // 输出第三方的内容
                     echo $rs;
-                    exit ();
+                    exit();
                 }
                 echo '';
             }
         } else {
             // 通过第三方
             $rs = $this->sendThreePlatform($shop, $postStr);
-            if (!empty ($rs)) {
+            if ($rs) {
                 echo $rs;
                 exit ();
             }
@@ -226,19 +222,16 @@ class Command extends Base
      */
     private function sendThreePlatform($shop, $postStr)
     {
-        $token = $shop['t_wx_token'];
-        if (!empty ($token)) {
+        if ($shop['t_wx_token']) {
             $nonce     = mt_rand(1, 1000);
             $timestamp = time();
-            $tmpArr    = [$token, $timestamp, $nonce];
+            $tmpArr    = [$shop['t_wx_token'], $timestamp, $nonce];
             sort($tmpArr, SORT_STRING);
             $tmpStr    = implode($tmpArr);
-            $signature = sha1($tmpStr);
             // 路由服务地址
-            $remote_server = $shop['t_wx_url'];
-            $urls          = explode("?", $remote_server);
-            $data          = 'timestamp=' . $timestamp . '&signature=' . $signature . '&nonce=' . $nonce;
-            if (isset ($urls [1])) {
+            $urls          = explode("?", $shop['t_wx_url']);
+            $data          = 'timestamp=' . $timestamp . '&signature=' . sha1($tmpStr) . '&nonce=' . $nonce;
+            if ($urls[1]) {
                 $data = $data . '&' . $urls [1];
             }
             $remote_server = $urls [0] . '?' . $data;
@@ -255,7 +248,7 @@ class Command extends Base
      *
      * @return mixed|string
      */
-    public function request_by_other($url, $data)
+    public function requestByOther($url, $data)
     {
         $file_contents = '';
         // 判断函数file_get_contents是否已开通
@@ -272,14 +265,13 @@ class Command extends Base
             for ($i = 0; $i < 5; $i++) {
                 $file_contents = @file_get_contents($url, false, $context);
                 //php.ini中，有这样两个选项:allow_url_fopen =on(表示可以通过url打开远程文件)，user_agent="PHP"（表示通过哪种脚本访问网络，默认前面有个 " ; " 去掉即可。）重启服务器。
-                if (!empty ($file_contents)) {
+                if ($file_contents) {
                     break;
                 }
             }
         }
-        if ($file_contents == '') {
+        if (!$file_contents) {
             $ch      = curl_init();
-            $timeout = 5;
             $header  = 'Content-type: application/x-www-form-urlencodedrn' . 'Content-Length: ' . strlen($data) . "rn";
             curl_setopt($ch, CURLOPT_URL, $url);
             curl_setopt($ch, CURLOPT_POST, 1);
@@ -361,8 +353,6 @@ class Command extends Base
     private function getTokenUrl($shop, $openId)
     {
         $token = $this->checkOpenId($shop, $openId);
-        // $a = decrypt_p();
-        $shopname = rawurlencode($shop ['shopname']);
         $url      = "http://www.baidu.com/?token=" . $token; //
         return $url;
     }
@@ -379,8 +369,9 @@ class Command extends Base
     {
         // 获得所有关注某商家公众平台的用户
         $info = MemberModel::select('*')->whereOpenId($openId)->get()->toArray();
+        $info = $info ? $info[0] : [];
         // 不存在关注当前商家公众平台的用户
-        if ($info || !isset ($info[0]) || !$info[0]['token']) {
+        if ($info || !$info['token']) {
             $addData['token']       = md5(uniqid());
             $addData['user']        = md5(uniqid());
             $addData['password']    = md5($openId);
@@ -425,6 +416,7 @@ class Command extends Base
         if ($status && $status1) {
             // 提交事务
             $build->getConnection()->commit();
+
             return $addData['token'];
         } else {
             // 回滚事务
