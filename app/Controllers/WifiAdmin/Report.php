@@ -8,6 +8,7 @@
  */
 namespace App\Controllers\WifiAdmin;
 
+use Api\MemberModel;
 use App\Controllers\BaseAdmin;
 use Illuminate\Database\Capsule\Manager as DB;
 
@@ -33,64 +34,21 @@ class Report extends BaseAdmin
      */
     public function user()
     {
-        $sqljson = "";
-        // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
-            //查询
-            $sqljson = json_encode($_POST);
-            session('userwhere', $sqljson);
-
-        } else {
-            //首次进入或分页
-            $sqljson = session('userwhere');
-            if (empty($sqljson) || $sqljson == "" || !isset($_GET['p'])) {
-                //默认为空
-                $where['sdate']  = date("Y-m-01");
-                $where['edate']  = date("Y-m-d");
-                $where['uname']  = "";
-                $where['uphone'] = "";
-                $where['mode']   = "-1";
-                $sqljson         = json_encode($where);
-            } else {
-                //有参数条件
-            }
-        }
-        //组装查询条件
-        $js = json_decode($sqljson);
-        $this->assign("qjson", $js);
-        $sqlwhere = " 1=1 ";
-        // 查询的开始和结束时间都不能为空
-        if ($js->sdate != "" && $js->edate != "") {
-            $sqlwhere .= " and a.add_date between '$js->sdate' and '$js->edate' ";
-        }
-        if ($js->mode != "-1") {
-            $sqlwhere .= " and a.mode=$js->mode";
-        } else {
-            $sqlwhere .= " and a.mode in(0,1) ";
-        }
-        // 用户名不能为空
-        if ($js->uname != "") {
-            $sqlwhere .= " and a.user like '%$js->uname%'";
-        }
-        // 用户的手机不为空
-        if ($js->uphone != "") {
-            $sqlwhere .= " and a.phone like '%$js->uphone%'";
-        }
-        // 应用页码类
-        import('@.ORG.AdminPage');
-        // 实例化一个对member表操作的对象
-        $db = D('Member');
-        // 认证模式
-        $where['mode'] = ['in', '0,1'];
+        $sqlWhere = $this->_getCondition();
         // 统计注册用户数量
-        $rs    = $db->query(" select count(*) as ct from " . C('DB_PREFIX') . "member a left join " . C('DB_PREFIX') . "shop b on a.shopid=b.id where $sqlwhere ");
-        $count = $rs[0]['ct'];
-        // 实例化一个页码类
-        $page = new AdminPage($count, C('ADMINPAGE'));
+        $rs  = DB::select('select count(*) as ct from wifi_member a left join wifi_shop b on a.shop_id=b.id where ' . $sqlWhere);
+        $num = $rs[0]['ct'];
         // 获得注册用户信息
-        $sql = "select a.*,b.account as shopaccount,b.shopname from " . C('DB_PREFIX') . "member a left join " . C('DB_PREFIX') . "shop b on a.shopid=b.id where $sqlwhere order by a.login_time desc,a.add_time desc limit " . $page->firstRow . ',' . $page->listRows . " ";
+        $sql = 'select a.*,b.account as shop_ac_count,b.shop_name from wifi_member a left join wifi_shop b on a.shop_id=b.id where ' . $sqlWhere . ' order by a.login_time desc,a.add_time desc limit ' . ($this->page - 1) * $this->perPage . ',' . $this->perPage . ' ';
         // 获得所有用户信息
-        $result = $db->query($sql);
+        $result = DB::select($sql);
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_links();
         // 分配页码
         $this->assign('page', $page->show());
         // 分配数据
@@ -103,56 +61,65 @@ class Report extends BaseAdmin
      */
     public function downUser()
     {
-        $sqljson = "";
+        $sqlWhere = $this->_getCondition();
+        // 获得用户名、手机号码、商店名称数据
+        $sql    = 'select a.user,a.phone,b.shop_name from wifi_member a left join wifi_shop b on a.shop_id=b.id where ' . $sqlWhere . ' order by a.login_time desc,a.add_time desc ';
+        $result = DB::select($sql);
+        // 将数据导入到excel表中
+        exportexcel($result, ['用户名', '手机号码', '所属商户'], '用户资料');
+    }
+
+    /**
+     * 获得查询条件
+     *
+     * @return string
+     */
+    private function _getCondition()
+    {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
+        if ($post) {
             //查询
-            $sqljson = json_encode($_POST);
-            session('userwhere', $sqljson);
+            $_SESSION['useWhere'] = json_encode($post);
 
         } else {
             //首次进入或分页
-            $sqljson = session('userwhere');
-            if (empty($sqljson) || $sqljson == "" || !isset($_GET['p'])) {
+            $sqlJson = $_SESSION['userWhere'];
+            if (!$sqlJson || !isset($_GET['p'])) {
                 //默认为空
-                $where['sdate']  = date("Y-m-01");
-                $where['edate']  = date("Y-m-d");
-                $where['uname']  = "";
-                $where['uphone'] = "";
-                $where['mode']   = "-1";
-                $sqljson         = json_encode($where);
-            } else {
-                //有参数条件
+                $where   = [
+                    'start_date' => date('Y-m-01'),
+                    'end_date'   => date('Y-m-d'),
+                    'user_name'  => '',
+                    'user_phone' => '',
+                    'mode'       => -1
+                ];
+                $sqlJson = json_encode($where);
             }
         }
         //组装查询条件
-        $js = json_decode($sqljson);
-        $this->assign("qjson", $js);
-        $sqlwhere = " 1=1 ";
-        if ($js->sdate != "" && $js->edate != "") {
-            $sqlwhere .= " and a.add_date between '$js->sdate' and '$js->edate' ";
+        $js       = json_decode($sqlJson, true);
+        $sqlWhere = ' 1=1 ';
+        if ($js['start_date'] && $js['end_date']) {
+            $sqlWhere .= ' and a.add_date between "' . $js['start_date'] . '" and "' . $js['end_date'] . ' "';
         }
         // 判断认证模式
-        if ($js->mode != "-1") {
-            $sqlwhere .= " and a.mode=$js->mode";
+        if ($js['mode'] != -1) {
+            $sqlWhere .= ' and a.mode=' . $js['mode'];
         } else {
-            $sqlwhere .= " and a.mode in(0,1) ";
+            $sqlWhere .= ' and a.mode in(0,1) ';
         }
         // 用户名不能为空
-        if ($js->uname != "") {
-            $sqlwhere .= " and a.user like '%$js->uname%'";
+        if ($js['user_name']) {
+            $sqlWhere .= ' and a.user like %' . $js['user_name'] . '%';
         }
         // 用户手机不能为空
-        if ($js->uphone != "") {
-            $sqlwhere .= " and a.phone like '%$js->uphone%'";
+        if ($js['user_phone']) {
+            $sqlWhere .= ' and a.phone like %' . $js['user_phone'] . '%';
         }
-        // 实例化一个对member表操作对象
-        $db = D('Member');
-        // 获得用户名、手机号码、商店名称数据
-        $sql    = "select a.user,a.phone,b.shopname from " . C('DB_PREFIX') . "member a left join " . C('DB_PREFIX') . "shop b on a.shopid=b.id where $sqlwhere order by a.login_time desc,a.add_time desc ";
-        $result = $db->query($sql);
-        // 将数据导入到excel表中
-        exportexcel($result, ['用户名', '手机号码', '所属商户'], '用户资料');
+        $this->assign('sqlJson', $js);
+
+        return $sqlWhere;
     }
 
     /**
@@ -160,20 +127,26 @@ class Report extends BaseAdmin
      */
     public function online()
     {
-        // 应用页码类
-        import('@.ORG.AdminPage');
-        // 实例化一个对member表操作对象
-        $db = D('Member');
-        // 统计所有的上网记录
-        $count = $db->count();
-        // 实例化一个页码对象
-        $page = new AdminPage($count, C('ADMINPAGE'));
-        // 获得上网的记录的所有信息
-        $sql = "select a.*,b.account as shopaccount,b.shopname from " . C('DB_PREFIX') . "member a left join " . C('DB_PREFIX') . "shop b on a.shopid=b.id order by a.login_time desc,a.add_time desc limit " . $page->firstRow . ',' . $page->listRows;
-        // 查询结果
-        $result = $db->query($sql);
+        $build  = MemberModel::select(' * ')->with([
+            'getShop' => function ($query) {
+                $query->select(['account', 'shop_name']);
+            }
+        ]);
+        $num    = $build->count();
+        $result = $build->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->orderBy([
+            'login_time' => 'desc',
+            'add_time'   => 'desc'
+        ])->get()->toArray();
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_links();
         // 分配页码
-        $this->assign('page', $page->show());
+        $this->assign('page', $page);
+        $result = $result ? : [];
         // 分配上网记录数据
         $this->assign('lists', $result);
         $this->display();
@@ -202,39 +175,45 @@ class Report extends BaseAdmin
     {
         switch (strtolower($param['mode'])) {
             case 'today':
-                $sql = 'select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(total_count,0)  as total_count, COALESCE(reg_count,0)  as reg_count ,COALESCE(phone_count,0) as phone_count from wifi_hours a left JOIN ';
-                $sql .= '(select thour, count(id) as total_count , count(CASE when mode=0 then 1 else null end) as reg_count, count(CASE when mode=1 then 1 else null end) as phone_count from ';
-                $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,id,mode from wifi_member ';
-                $sql .= 'where add_date="' . date('Y-m-d') . '" and ( mode=0 or mode=1 ) ';
+                $sql = 'select t,CONCAT(CURDATE(), " ", t, "点") as show_date, COALESCE(total_count,
+        0)  as total_count, COALESCE(reg_count, 0)  as reg_count ,COALESCE(phone_count, 0) as phone_count from wifi_hours a left JOIN ';
+                $sql .= '(select thour, count(id) as total_count , count(CASE when mode = 0 then 1 else null end) as reg_count, count(CASE when mode = 1 then 1 else null end) as phone_count from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time, "%H") as thour,id,mode from wifi_member ';
+                $sql .= 'where add_date = "' . date('Y-m-d') . '" and (mode = 0 or mode = 1) ';
                 $sql .= ')a group by thour ) c ';
-                $sql .= ' on a.t=c.thour ';
+                $sql .= ' on a . t = c . thour ';
                 break;
             case 'yesterday':
-                $sql = 'select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(total_count,0)  as total_count, COALESCE(reg_count,0)  as reg_count ,COALESCE(phone_count,0) as phone_count from wifi_hours a left JOIN ';
-                $sql .= '(select thour, count(id) as total_count , count(CASE when mode=0 then 1 else null end) as reg_count, count(CASE when mode=1 then 1 else null end) as phone_count from ';
-                $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,id,mode from wifi_member ';
-                $sql .= 'where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and ( mode=0 or mode=1 )  ';
+                $sql = 'select t,CONCAT(CURDATE(), " ", t, "点") as show_date, COALESCE(total_count,
+        0)  as total_count, COALESCE(reg_count, 0)  as reg_count ,COALESCE(phone_count, 0) as phone_count from wifi_hours a left JOIN ';
+                $sql .= '(select thour, count(id) as total_count , count(CASE when mode = 0 then 1 else null end) as reg_count, count(CASE when mode = 1 then 1 else null end) as phone_count from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time, "%H") as thour,id,mode from wifi_member ';
+                $sql .= 'where add_date = DATE_ADD(CURDATE(), INTERVAL - 1 DAY) and (mode = 0 or mode = 1)  ';
                 $sql .= ')a group by thour ) c ';
-                $sql .= 'on a.t=c.thour ';
+                $sql .= 'on a . t = c . thour ';
                 break;
             case 'week':
-                $sql = 'select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(total_count,0)  as total_count, COALESCE(reg_count,0)  as reg_count ,COALESCE(phone_count,0) as phone_count from ';
-                $sql .= '( select CURDATE() as td ';
+                $sql = 'select td as show_date,right(td, 5) as td,datediff(td, CURDATE()) as t, COALESCE(total_count,
+        0)  as total_count, COALESCE(reg_count, 0)  as reg_count ,COALESCE(phone_count, 0) as phone_count from ';
+                $sql .= '(select CURDATE() as td ';
                 for ($i = 1; $i < 7; $i++) {
-                    $sql .= ' UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
+                    $sql .= ' UNION all select DATE_ADD(CURDATE(), INTERVAL - ' . $i . ' DAY) ';
                 }
                 $sql .= 'ORDER BY td ) a left join ';
-                $sql .= '( select add_date,count(id) as total_count , count(CASE when mode=0 then 1 else null end) as reg_count, count(CASE when mode=1 then 1 else null end) as phone_count from wifi_member ';
-                $sql .= 'where  add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE()  and ( mode=0 or mode=1 ) GROUP BY  add_date ';
-                $sql .= ') b on a.td=b.add_date ';
+                $sql .= '(select add_date,count(id) as total_count , count(CASE when mode = 0 then 1 else null end) as reg_count, count(CASE when mode = 1 then 1 else null end) as phone_count from wifi_member ';
+                $sql .= 'where  add_date between DATE_ADD(CURDATE(),
+        INTERVAL - 6 DAY) and CURDATE() and (mode = 0 or mode = 1) GROUP BY  add_date ';
+                $sql .= ') b on a . td = b . add_date ';
                 break;
             case 'month':
                 $t   = date("t");
-                $sql = 'select tname as show_date,tname as t, COALESCE(total_count,0)  as total_count, COALESCE(reg_count,0)  as reg_count ,COALESCE(phone_count,0) as phone_count from wifi_day  a left JOIN ';
-                $sql .= '( select right(add_date,2) as td ,count(id) as total_count , count(CASE when mode=0 then 1 else null end) as reg_count, count(CASE when mode=1 then 1 else null end) as phone_count from wifi_member ';
-                $sql .= 'where    add_date >= "' . date('Y-m-01') . '" and ( mode=0 or mode=1 ) GROUP BY  add_date ';
-                $sql .= ') b on a.tname=b.td ';
-                $sql .= 'where a.id between 1 and  ' . date('t');
+                $sql = 'select tname as show_date,tname as t, COALESCE(total_count,
+        0)  as total_count, COALESCE(reg_count, 0)  as reg_count ,COALESCE(phone_count, 0) as phone_count from wifi_day  a left JOIN ';
+                $sql .= '(select right(add_date,
+        2) as td ,count(id) as total_count , count(CASE when mode = 0 then 1 else null end) as reg_count, count(CASE when mode = 1 then 1 else null end) as phone_count from wifi_member ';
+                $sql .= 'where    add_date >= "' . date('Y-m-01') . '" and (mode = 0 or mode = 1) GROUP BY  add_date ';
+                $sql .= ') b on a . tname = b . td ';
+                $sql .= 'where a . id between 1 and ' . date('t');
                 break;
             case 'query':
                 //                // 引用date工具类
@@ -242,15 +221,16 @@ class Report extends BaseAdmin
                 // 实例化一个Date对象
                 $dt      = new Date($param['start_date']);
                 $leftDay = $dt->dateDiff($param['end_date'], 'd');
-                $sql     = 'select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(total_count,0)  as total_count, COALESCE(reg_count,0)  as reg_count ,COALESCE(phone_count,0) as phone_count  from ';
-                $sql .= '( select "' . $param['start_date'] . '" as td ';
+                $sql     = 'select td as show_date,right(td, 5) as td,datediff(td, CURDATE()) as t,COALESCE(total_count,
+        0)  as total_count, COALESCE(reg_count, 0)  as reg_count ,COALESCE(phone_count, 0) as phone_count  from ';
+                $sql .= '(select "' . $param['start_date'] . '" as td ';
                 for ($i = 0; $i <= $leftDay; $i++) {
                     $sql .= 'UNION all select DATE_ADD("' . $param['start_date'] . ' ",INTERVAL ' . $i . ' DAY) ';
                 }
                 $sql .= ') a left join ';
-                $sql .= '( select add_date,count(id) as total_count , count(CASE when mode=0 then 1 else null end) as reg_count, count(CASE when mode=1 then 1 else null end) as phone_count  from wifi_member ';
-                $sql .= 'where  add_date between "' . $param['start_date'] . '" and "' . param['end_date'] . '"  and ( mode=0 or mode=1 ) GROUP BY  add_date ';
-                $sql .= ') b on a.td=b.add_date ';
+                $sql .= '(select add_date,count(id) as total_count , count(CASE when mode = 0 then 1 else null end) as reg_count, count(CASE when mode = 1 then 1 else null end) as phone_count  from wifi_member ';
+                $sql .= 'where  add_date between "' . $param['start_date'] . '" and "' . param['end_date'] . '" and (mode = 0 or mode = 1) GROUP BY  add_date ';
+                $sql .= ') b on a . td = b . add_date ';
                 break;
         }
         $data = DB::select($sql);
@@ -281,56 +261,64 @@ class Report extends BaseAdmin
     {
         switch (strtolower($param['mode'])) {
             case 'today':
-                $sql = 'select t,CONCAT(CURDATE()," ",t,"点" as show_date, COALESCE(ct,0)  as ct ,COALESCE(ct_reg,0)  as ct_reg,COALESCE(ct_phone,0)  as ct_phone,COALESCE(ct_key,0)  as ct_key,COALESCE(ct_log,0)  as ct_log from wifi_hours a left JOIN ';
-                $sql .= '( select thour ,count(*) as ct ,count(case when mode=0 then 1 else null end) as ct_reg,count(case when mode=1 then 1 else null end) as ct_phone,count(case when mode=2 then 1 else null end) as ct_key,count(case when mode=3 then 1 else null end) as ct_log from ';
-                $sql .= '(select shop_id,mode,FROM_UNIXTIME(login_time,"%H") as thour, ';
-                $sql .= ' FROM_UNIXTIME(login_time,"%Y-%m-%d") as d from wifi_auth_list ) a ';
-                $sql .= ' where d="' . date('Y-m-d') . '" ';
+                $sql = 'select t,CONCAT(CURDATE(), " ", t, "点" as show_date, COALESCE(ct, 0)  as ct ,COALESCE(ct_reg,
+        0)  as ct_reg,COALESCE(ct_phone, 0)  as ct_phone,COALESCE(ct_key, 0)  as ct_key,COALESCE(ct_log, 0)  as ct_log from wifi_hours a left JOIN ';
+                $sql .= '(select thour ,count(*) as ct ,count(case when mode = 0 then 1 else null end) as ct_reg,count(case when mode = 1 then 1 else null end) as ct_phone,count(case when mode = 2 then 1 else null end) as ct_key,count(case when mode = 3 then 1 else null end) as ct_log from ';
+                $sql .= '(select shop_id,mode,FROM_UNIXTIME(login_time, "%H") as thour, ';
+                $sql .= ' FROM_UNIXTIME(login_time, "%Y-%m-%d") as d from wifi_auth_list ) a ';
+                $sql .= ' where d = "' . date('Y-m-d') . '" ';
                 $sql .= ' group by thour ) ';
-                $sql .= ' b on a.t=b.thour ';
+                $sql .= ' b on a . t = b . thour ';
                 break;
             case 'yesterday':
-                $sql = 'select t, CONCAT(CURDATE()," ",t,"点") as show_date,COALESCE(ct,0)  as ct,COALESCE(ct_reg,0)  as ct_reg,COALESCE(ct_phone,0)  as ct_phone,COALESCE(ct_key,0)  as ct_key,COALESCE(ct_log,0)  as ct_log from wifi_hours a left JOIN ';
-                $sql .= '( select thour ,count(*) as ct ,count(case when mode=0 then 1 else null end) as ct_reg,count(case when mode=1 then 1 else null end) as ct_phone,count(case when mode=2 then 1 else null end) as ct_key,count(case when mode=3 then 1 else null end) as ct_log from ';
-                $sql .= '(select shop_id,mode,FROM_UNIXTIME(login_time,"%H") as thour, ';
-                $sql .= ' FROM_UNIXTIME(login_time,"%Y-%m-%d") as d from wifi_auth_list ) a ';
-                $sql .= ' where d=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) ';
+                $sql = 'select t, CONCAT(CURDATE(), " ", t, "点") as show_date,COALESCE(ct, 0)  as ct,COALESCE(ct_reg,
+        0)  as ct_reg,COALESCE(ct_phone, 0)  as ct_phone,COALESCE(ct_key, 0)  as ct_key,COALESCE(ct_log, 0)  as ct_log from wifi_hours a left JOIN ';
+                $sql .= '(select thour ,count(*) as ct ,count(case when mode = 0 then 1 else null end) as ct_reg,count(case when mode = 1 then 1 else null end) as ct_phone,count(case when mode = 2 then 1 else null end) as ct_key,count(case when mode = 3 then 1 else null end) as ct_log from ';
+                $sql .= '(select shop_id,mode,FROM_UNIXTIME(login_time, "%H") as thour, ';
+                $sql .= ' FROM_UNIXTIME(login_time, "%Y-%m-%d") as d from wifi_auth_list ) a ';
+                $sql .= ' where d = DATE_ADD(CURDATE(), INTERVAL - 1 DAY) ';
                 $sql .= ' group by thour ) ';
-                $sql .= ' b on a.t=b.thour ';
+                $sql .= ' b on a . t = b . thour ';
                 break;
             case 'week':
-                $sql = 'select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(ct,0)  as ct ,COALESCE(ct_reg,0)  as ct_reg,COALESCE(ct_phone,0)  as ct_phone,COALESCE(ct_key,0)  as ct_key,COALESCE(ct_log,0)  as ct_log from ';
-                $sql .= ' ( select CURDATE() as td ';
+                $sql = 'select td as show_date,right(td, 5) as td,datediff(td, CURDATE()) as t,COALESCE(ct,
+        0)  as ct ,COALESCE(ct_reg, 0)  as ct_reg,COALESCE(ct_phone, 0)  as ct_phone,COALESCE(ct_key,
+        0)  as ct_key,COALESCE(ct_log, 0)  as ct_log from ';
+                $sql .= ' (select CURDATE() as td ';
                 for ($i = 1; $i < 7; $i++) {
-                    $sql .= '  UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
+                    $sql .= '  UNION all select DATE_ADD(CURDATE(), INTERVAL - ' . $i . ' DAY) ';
                 }
                 $sql .= ' ORDER BY td ) a left join ';
-                $sql .= '( select add_date,count(*) as ct ,count(case when mode=0 then 1 else null end) as ct_reg,count(case when mode=1 then 1 else null end) as ct_phone,count(case when mode=2 then 1 else null end) as ct_key,count(case when mode=3 then 1 else null end) as ct_log from wifi_auth_list ';
-                $sql .= ' where  add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE()  GROUP BY  add_date ';
-                $sql .= ' ) b on a.td=b.add_date ';
+                $sql .= '(select add_date,count(*) as ct ,count(case when mode = 0 then 1 else null end) as ct_reg,count(case when mode = 1 then 1 else null end) as ct_phone,count(case when mode = 2 then 1 else null end) as ct_key,count(case when mode = 3 then 1 else null end) as ct_log from wifi_auth_list ';
+                $sql .= ' where  add_date between DATE_ADD(CURDATE(), INTERVAL - 6 DAY) and CURDATE()  GROUP BY  add_date ';
+                $sql .= ' ) b on a . td = b . add_date ';
                 break;
             case 'month':
-                $sql = 'select tname as showdate,tname as t, COALESCE(ct,0) as ct ,COALESCE(ct_reg,0)  as ct_reg,COALESCE(ct_phone,0)  as ct_phone,COALESCE(ct_key,0)  as ct_key,COALESCE(ct_log,0)  as ct_log from wifi_day  a left JOIN ';
-                $sql .= '( select right(add_date,2) as td ,count(*) as ct,count(case when mode=0 then 1 else null end) as ct_reg,count(case when mode=1 then 1 else null end) as ct_phone,count(case when mode=2 then 1 else null end) as ct_key,count(case when mode=3 then 1 else null end) as ct_log  from wifi_auth_list  ';
+                $sql = 'select tname as showdate,tname as t, COALESCE(ct, 0) as ct ,COALESCE(ct_reg,
+        0)  as ct_reg,COALESCE(ct_phone, 0)  as ct_phone,COALESCE(ct_key, 0)  as ct_key,COALESCE(ct_log, 0)  as ct_log from wifi_day  a left JOIN ';
+                $sql .= '(select right(add_date,
+        2) as td ,count(*) as ct,count(case when mode = 0 then 1 else null end) as ct_reg,count(case when mode = 1 then 1 else null end) as ct_phone,count(case when mode = 2 then 1 else null end) as ct_key,count(case when mode = 3 then 1 else null end) as ct_log  from wifi_auth_list  ';
                 $sql .= ' where    add_date >= "' . date('Y-m-01') . '" GROUP BY  add_date ';
-                $sql .= ' ) b on a.tname=b.td ';
-                $sql .= ' where a.id between 1 and ' . date('t');
+                $sql .= ' ) b on a . tname = b . td ';
+                $sql .= ' where a . id between 1 and ' . date('t');
                 break;
             case 'query':
                 // 引用Date工具类
-                import("ORG.Util.Date");
+                //                import("ORG.Util.Date");
                 // 实例化一个date类
                 $dt      = new Date($param['start_date']);
                 $leftDay = $dt->dateDiff($param['end_date'], 'd');
-                $sql     = 'select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(ct,0)  as ct ,COALESCE(ct_reg,0)  as ct_reg,COALESCE(ct_phone,0)  as ct_phone,COALESCE(ct_key,0)  as ct_key,COALESCE(ct_log,0)  as ct_log from ';
-                $sql .= ' ( select "' . $param['start_date'] . '" as td ';
+                $sql     = 'select td as show_date,right(td, 5) as td,datediff(td, CURDATE()) as t,COALESCE(ct,
+        0)  as ct ,COALESCE(ct_reg, 0)  as ct_reg,COALESCE(ct_phone, 0)  as ct_phone,COALESCE(ct_key,
+        0)  as ct_key,COALESCE(ct_log, 0)  as ct_log from ';
+                $sql .= ' (select "' . $param['start_date'] . '" as td ';
                 for ($i = 0; $i <= $leftDay; $i++) {
                     $sql .= '  UNION all select DATE_ADD("' . $param['start_date'] . '" ,INTERVAL ' . $i . ' DAY) ';
                 }
                 $sql .= ' ) a left join ';
-                $sql .= '( select add_date,count(*) as ct ,count(case when mode=0 then 1 else null end) as ct_reg,count(case when mode=1 then 1 else null end) as ct_phone,count(case when mode=2 then 1 else null end) as ct_key,count(case when mode=3 then 1 else null end) as ct_log  from wifi_auth_list ';
+                $sql .= '(select add_date,count(*) as ct ,count(case when mode = 0 then 1 else null end) as ct_reg,count(case when mode = 1 then 1 else null end) as ct_phone,count(case when mode = 2 then 1 else null end) as ct_key,count(case when mode = 3 then 1 else null end) as ct_log  from wifi_auth_list ';
                 $sql .= 'where   add_date between "' . $param['start_date'] . '" and "' . $param['end_date'] . '"  GROUP BY  add_date ';
-                $sql .= ') b on a.td=b.add_date ';
+                $sql .= ') b on a . td = b . add_date ';
                 break;
         }
         $data = DB::select($sql);
@@ -366,7 +354,9 @@ class Report extends BaseAdmin
      */
     private function _getRouteChart()
     {
-        $sql  = 'select count(*) as total,count(case when last_heartbeat_time >= unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) ) then 1 else null end)  as livecount,count(case when last_heartbeat_time <unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) ) then 1 when last_heartbeat_time is null then 1  else null end)  as diecount  from wifi_route_map';
+        $sql  = 'select count(*) as total,count(case when last_heartbeat_time >= unix_timestamp(DATE_ADD(now(),
+        INTERVAL - 30 MINUTE) ) then 1 else null end)  as livecount,count(case when last_heartbeat_time < unix_timestamp(DATE_ADD(now(),
+        INTERVAL - 30 MINUTE) ) then 1 when last_heartbeat_time is null then 1  else null end)  as diecount  from wifi_route_map';
         $data = DB::select($sql);
         $data = $data ?? [];
         call_back(0, $data);
@@ -379,41 +369,43 @@ class Report extends BaseAdmin
      */
     private function _getRouteList()
     {
-        // 引用页码类
-        import('@.ORG.AdminAjaxPage');
         // 获得查询路由的状态
-        $tp = I('get.flag');
+        $flag = $this->request->getGet('flag');
         // 在线路由
-        if ($tp == "a") {
+        if ($flag == 'a') {
             // 查询条件
-            $where = "where last_heartbeat_time >= unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) )";
-        } else if ($tp == 'd') {
+            $where = 'where last_heartbeat_time >= unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) )';
+        } else if ($flag == 'd') {
             //离线路由(查询条件)
-            $where = "where last_heartbeat_time < unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) )";
+            $where = 'where last_heartbeat_time < unix_timestamp(DATE_ADD(now(),INTERVAL -30 MINUTE) )';
         } else {
             exit;
         }
-
         // 获得路由id、提供路由商家id
-        $sql = 'select a.id,a.shopid,FROM_UNIXTIME( last_heartbeat_time, "%Y-%m-%d %H:%i:%s" )  as last_heartbeat_time,b.shopname  from wifi_route_map a left join wifi_shop b on a.shopid=b.id ';
+        $sql = 'select a . id,a . shopid,FROM_UNIXTIME(last_heartbeat_time,
+        "%Y-%m-%d %H:%i:%s")  as last_heartbeat_time,b . shopname  from wifi_route_map a left join wifi_shop b on a . shopid = b . id ';
         // 查询条件
         $sql .= $where;
         // 统计路由数量
         $sqlCount = ' select count(*) as ct from wifi_route_map ';
         $sqlCount .= $where;
-        $rs    = DB::select($sqlCount);
-        $count = $rs[0]['ct'];
-        // 实例化一个页码对象，每页显示10条数据
-        $page = new AdminAjaxPage($count, 10);
-        $sql .= ' limit ' . $page->firstRow . ',' . $page->listRows . ' ';
+        $rs  = DB::select($sqlCount);
+        $num = $rs[0]['ct'];
+        $sql .= ' limit ' . ($this->page - 1) * $this->perPage . ',' . $this->perPage . ' ';
         $info = DB::select($sql);
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_ajax_links();
         // 分配数据
         $back['list'] = $info;
         //页码
-        $back['pg'] = $page->show();
-
+        $back['pg'] = $page;
         // 将页码异步传过去
-        return $this->ajaxReturn($back);
+        call_back(0, $back);
     }
 
 }
