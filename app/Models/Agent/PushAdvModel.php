@@ -13,4 +13,14 @@ use YP\Core\YP_Model;
 class PushAdvModel extends YP_Model
 {
     protected $table = 'wifi_push_adv';
+
+    /**
+     * 获得代理
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     */
+    public function getAgent()
+    {
+        return $this->hasOne('\Agent\AgentModel', 'id', 'aid');
+    }
 }

@@ -8,8 +8,10 @@
  */
 namespace App\Controllers\WifiAdmin;
 
-use App\Controllers\BaseAdmin;
+use Agent\PushAdvModel;
 use WifiAdmin\AdminPushSet;
+use App\Controllers\BaseAdmin;
+use Illuminate\Database\Capsule\Manager as DB;
 
 /**
  * 广告推送
@@ -29,7 +31,7 @@ class PushAdv extends BaseAdmin
     }
 
     /**
-     * [set 推送设置]
+     * 推送设置
      */
     public function set()
     {
@@ -75,26 +77,39 @@ class PushAdv extends BaseAdmin
      */
     public function index()
     {
-        // 引用页码类
-        import('@.ORG.AdminPage');
-        // 实例化一个对pushadv表操作对象
-        $db = D('Pushadv');
-        // 统计广告数量
-        $count = $db->count();
-        // 实例化一个页码对象
-        $page = new AdminPage ($count, C('ADMINPAGE'));
-        // 获得广告信息
-        $sql    = "select a.*,b.name as agentname from " . C('DB_PREFIX') . 'pushadv a left join ' . C('DB_PREFIX') . 'agent b on a.aid=b.id order by sort desc,add_time desc limit ' . $page->firstRow . ',' . $page->listRows;
-        $result = $db->query($sql);
-        $list2  = [];
-        foreach ($result as $rs) {
-            $rs ['pic'] = $this->downloadUrl($rs ['pic']);
-            $list2 []   = $rs;
+        $build  = PushAdvModel::select([
+            'id',
+            'title',
+            'mode',
+            'pic',
+            'info',
+            'sort',
+            'show_count',
+            'aid',
+            'state',
+            'start_time',
+            'end_time'
+        ])->with([
+            'getAgent' => function ($query) {
+                $query->select(['id', 'name']);
+            }
+        ]);
+        $num    = $build->count();
+        $result = $build->orderBy('id desc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_links();
+        foreach ($result as &$rs) {
+            $rs['pic'] = $this->downloadUrl($rs['pic']);
         }
         // 分配页码
-        $this->assign('page', $page->show());
+        $this->assign('page', $page);
         // 分配广告数据
-        $this->assign('lists', $list2);
+        $this->assign('lists', $result);
         $this->display();
     }
 
@@ -103,39 +118,26 @@ class PushAdv extends BaseAdmin
      */
     public function add()
     {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset ($_POST) && !empty($_POST)) {
+        if ($post) {
             // 设置添加时间
-            $_POST['add_time'] = time();
+            $post['add_time'] = time();
             // 检测投送广告投放时间段
-            if ($_POST ['startdate'] == "" || $_POST ['enddate'] == "") {
-                $this->error('请选择广告投放时间段');
+            if ($post['start_date'] == '' || $post['end_date'] == '') {
+                call_back(2, '', '请选择广告投放时间段');
             }
             // 分别给$ret，$err赋值
-            list ($ret, $err) = $this->uploadFile(session('uid'), $_FILES ['img'] ['name'],
-                $_FILES ['img'] ['tmp_name']);
-            if ($err !== null) {
-                $this->error('上传失败');
-            } else {
-                $_POST ['pic']  = $ret ['key'];
-                $ad             = D('Pushadv');
-                $_POST ['sort'] = I('post.sort', '0', 'int');
-                // $_POST ['sort'] = isset ( $_POST ['sort'] ) ? $_POST ['sort'] : 0;
-                $_POST ['startdate'] = strtotime($_POST ['startdate']);
-                $_POST ['enddate']   = strtotime($_POST ['enddate']);
-                // 自动验证POST数据
-                if ($ad->create()) {
-                    // 添加成功
-                    if ($ad->add()) {
-                        $this->success('添加广告成功', U('pushadv/index', '', true, true, true));
-                    } else {
-                        $this->error('添加失败，请重新添加');
-                    }
-                } else {
-                    // 自动验证失败
-                    $this->error($ad->getError());
-                }
-            }
+            $post['pic']         = $this->uploadFile($this->uid, $_FILES['img']['name'], $_FILES['img']['tmp_name']);
+            $post['start_date']  = strtotime($post['start_date']);
+            $post['end_date']    = strtotime($post['end_date']);
+            $post['create_time'] = time();
+            $post['update_time'] = time();
+            $post['create_by']   = $this->uid;
+            $post['update_by']   = $this->uid;
+            $status              = PushAdvModel::insertGetId($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
+            //                    $this->success('添加广告成功', U('pushadv/index', '', true, true, true));
         } else {
             // 没有POST数据提交就显示添加模板
             $this->display();
@@ -143,210 +145,153 @@ class PushAdv extends BaseAdmin
     }
 
     /**
-     * [edit 编辑推送广告]
-     * @return [type] [description]
+     * 编辑推送广告
      */
     public function edit()
     {
-        // 获得要编辑的广告id
-        $id = I('get.id', '0', 'int');
+        $post = $this->request->getPost();
         // 查找条件
-        $where ['id'] = $id;
+        $id = $this->request->getGet('id');
         // 获得当前要编辑的广告信息
-        $result = D('Pushadv')->where($where)->find();
+        $result = PushAdvModel::whereId($id)->get()->toArray();
+        $result = $result ? $result[0] : [];
         // 判断是否有POST数据提交
-        if (isset ($_POST) && !empty($_POST)) {
+        if ($post) {
+            if (!$result) {
+                call_back(2, '', '当前广告信息不存在!');
+            }
             // 检测是否设置广告投放时间段
-            if ($_POST ['startdate'] == "" || $_POST ['enddate'] == "") {
-                $this->error('请选择广告投放时间段');
+            if ($post['start_date'] == '' || $post['end_date'] == '') {
+                call_back(2, '', '请选择广告投放时间段');
             }
-            $id           = I('post.id', '0', 'int');
-            $where ['id'] = $id;
-            $db           = D('Pushadv');
-            // 引用上传类
-            import('ORG.Net.UploadFile');
-            // 实例化一个上传对象
-            $upload            = new UploadFile ();
-            $upload->maxSize   = C('AD_SIZE');
-            $upload->allowExts = C('AD_IMGEXT');
-            $upload->savePath  = C('AD_PUSHSAVE');
             // 检测图片是否上传成功
-            if (!is_null($_FILES ['img'] ['name']) && $_FILES ['img'] ['name'] != "") {
-                if (!$upload->upload()) {
-                    $this->error($upload->getErrorMsg());
-                } else {
-                    // 获得上传文件信息
-                    $info          = $upload->getUploadFileInfo();
-                    $_POST ['pic'] = trim($info [0] ['savepath'], '.') . $info [0] ['savename'];
-                }
+            if (!is_null($_FILES['img']['name']) && $_FILES['img']['name'] != '') {
+                $post['pic'] = $this->uploadFile($this->uid, $_FILES['img']['name'], $_FILES['img']['tmp_name']);
             } else {
-                $_POST ['pic'] = $result ['pic'];
+                $post['pic'] = $result['pic'];
             }
-            if ($result) {
-                // 转换时间显示方式
-                $_POST ['startdate'] = strtotime($_POST ['startdate']);
-                $_POST ['enddate']   = strtotime($_POST ['enddate']);
-                // 自动验证POST数据
-                if ($db->create()) {
-                    // 保存更新的数据
-                    if ($db->where($where)->save()) {
-                        $this->success('修改成功', U('pushadv/index', '', true, true, true));
-                    } else {
-                        $this->error('操作出错');
-                    }
-                } else {
-                    // 自动验证失败
-                    $this->error($db->getError());
-                }
+            // 转换时间显示方式
+            $post['startdate']   = strtotime($post ['start_date']);
+            $post['end_date']    = strtotime($post ['end_date']);
+            $post['update_time'] = time();
+            $post['update_by']   = $this->uid;
+            $status              = PushAdvModel::whereId($post['id'])->update($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
 
-            }
         } else {
-            // // 获得要编辑的广告id
-            // $id = I('get.id','0','int');
-            // // 查找条件
-            // $where ['id'] = $id;
-            // // 获得当前要编辑的广告信息
-            // $result = D ( 'Pushadv' )->where ( $where )->find ();
-            if ($result) {
-                $result ['pic'] = $this->downloadUrl($result ['pic']);
-                // 分配当前广告信息
-                $this->assign('info', $result);
-
-            } else {
-                $this->error('无此广告信息');
-            }
+            $result['pic'] = $this->downloadUrl($result ['pic']);
+            // 分配当前广告信息
+            $this->assign('info', $result);
             $this->display();
         }
     }
 
     /**
-     * [del 删除广告]
-     * @return [type] [description]
+     * 删除广告
+     *
+     * @param $id
      */
-    public function del()
+    public function del($id)
     {
-        // 获得当前要删除广告的id
-        $id = I('get.id', '0', 'int');
-        if ($id) {
-            // 获得当前广告的图片信息
-            $thumb = D('Pushadv')->where("id={$id}")->field("id,pic")->select();
-            // 删除当前广告
-            if (D('Pushadv')->delete($id)) {
-                // 判断上传图片的所在文件是否存在
-                if (file_exists(".{$thumb[0]['pic']}")) {
-                    // 删除当前广告的图片
-                    unlink(".{$thumb[0]['pic']}");
-                }
-                $this->success('删除成功', U('index'));
-            } else {
-                $this->error('操作出错');
-            }
+        // 获得当前广告的图片信息
+        $result = PushAdvModel::select(['id', 'pic'])->whereId($id)->get()->toArray();
+        $result = $result ? $result[0] : [];
+        if (!$result) {
+            call_back(2, '', '该广告不存在!');
         }
+        // 删除当前广告
+        $status = PushAdvModel::whereId($id)->update(['is_delete' => 1]);
+        $status ? call_back(0) : call_back(2, '', '操作失败!');
     }
 
-
-    //	private function configsave() {
-    //		$act = $this->_post ( 'action' );
-    //		unset ( $_POST ['files'] );
-    //		unset ( $_POST ['action'] );
-    //		unset ( $_POST [C ( 'TOKEN_NAME' )] );
-    //		if (update_config ( $_POST, CONF_PATH . "adv.php" )) {
-    //			$this->success ( '操作成功', U ( 'Pushadv/' . $act ) );
-    //		} else {
-    //			$this->success ( '操作失败', U ( 'Pushadv/' . $act ) );
-    //		}
-    //	}
     /**
-     * [rpt 广告推送统计]
-     * @return [type] [description]
+     * 广告推送统计
      */
     public function rpt()
     {
         // 获得查询的方式
-        $way = I('get.mode');
-        if (!empty ($way)) {
+        $way = $this->request->getGet('mode');
+        if ($way) {
             // 获得相应查询下的结果
-            $this->getadrpt($way);
-            exit;
+            $data = $this->_getAdRpt($way);
+            call_back(0, $data);
         }
         $this->display();
     }
 
     /**
-     * [getadrpt description]
+     * 广告报表
      *
-     * @param  [type] $way [description]
-     *
-     * @return [type]      [description]
+     * @param $way
      */
-    private function getadrpt($way)
+    private function _getAdRpt($way)
     {
         // 获得当前商户的广告id
-        $where = " where shopid=" . session('uid');
+        $where = ' where shop_id=' . $this->uid;
         switch (strtolower($way)) {
-            case "today" :
-                $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit,  ";
-                $sql .= "sum(case when mode=99 then showup else 0 end) as pshowup, ";
-                $sql .= "sum(case when mode=50 then showup else 0 end) as ashowup, ";
-                $sql .= "sum(case when mode=99 then hit else 0 end) as phit, ";
-                $sql .= "sum(case when mode=99 then showup else 0 end) as ahit from";
-                $sql .= "  (select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit,mode from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where add_date='" . date("Y-m-d") . "' and (mode=99 or mode=50) ";
-                $sql .= " )a group by thour ) c ";
-                $sql .= "  on a.t=c.thour ";
+            case 'today' :
+                $sql = 'select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(show_up,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit,  ';
+                $sql .= 'sum(case when mode=99 then show_up else 0 end) as pshowup, ';
+                $sql .= 'sum(case when mode=50 then show_up else 0 end) as ashowup, ';
+                $sql .= 'sum(case when mode=99 then hit else 0 end) as phit, ';
+                $sql .= 'sum(case when mode=99 then show_up else 0 end) as ahit from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time, "%H") as thour,showup ,hit,mode from wifi_ad_count ';
+                $sql .= 'where add_date="' . date('Y-m-d', time()) . '" and (mode=99 or mode=50) ';
+                $sql .= ' )a group by thour ) c ';
+                $sql .= '  on a.t=c.thour ';
                 break;
-            case "yestoday" :
-                $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit,  ";
-                $sql .= "sum(case when mode=99 then showup else 0 end) as pshowup, ";
-                $sql .= "sum(case when mode=50 then showup else 0 end) as ashowup, ";
-                $sql .= "sum(case when mode=99 then hit else 0 end) as phit, ";
-                $sql .= "sum(case when mode=99 then showup else 0 end) as ahit from";
-                $sql .= "(select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and (mode=99 or mode=50) ";
-                $sql .= " )a group by thour ) c ";
-                $sql .= "  on a.t=c.thour ";
+            case 'yesterday' :
+                $sql = 'select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit,  ';
+                $sql .= 'sum(case when mode=99 then show_up else 0 end) as pshowup, ';
+                $sql .= 'sum(case when mode=50 then show_up else 0 end) as ashowup, ';
+                $sql .= 'sum(case when mode=99 then hit else 0 end) as phit, ';
+                $sql .= 'sum(case when mode=99 then show_up else 0 end) as ahit from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,showup ,hit from wifi_adcount ';
+                $sql .= 'where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and (mode=99 or mode=50) ';
+                $sql .= ' )a group by thour ) c ';
+                $sql .= ' on a.t=c.thour ';
                 break;
-            case "week" :
-                $sql = "  select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit ,COALESCE(hit/showup*100,0) as rt from ";
-                $sql .= " ( select CURDATE() as td ";
+            case 'week' :
+                $sql = 'select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit ,COALESCE(hit/show_up*100,0) as rt from ';
+                $sql .= '( select CURDATE() as td ';
                 for ($i = 1; $i < 7; $i++) {
-                    $sql .= "  UNION all select DATE_ADD(CURDATE() ,INTERVAL -$i DAY) ";
+                    $sql .= '  UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
                 }
-                $sql .= " ORDER BY td ) a left join ";
-                $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and (mode=99 or mode=50) GROUP BY  add_date";
-                $sql .= " ) b on a.td=b.add_date ";
+                $sql .= 'ORDER BY td ) a left join ';
+                $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit from wifi_ad_count ';
+                $sql .= 'where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and (mode=99 or mode=50) GROUP BY  add_date ';
+                $sql .= ') b on a.td=b.add_date ';
                 break;
-            case "month" :
-                $t   = date("t");
-                $sql = " select tname as showdate,tname as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "day  a left JOIN";
-                $sql .= "( select right(add_date,2) as td ,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount  ";
-                $sql .= " where   add_date >= '" . date("Y-m-01") . "' and (mode=99 or mode=50) GROUP BY  add_date";
-                $sql .= " ) b on a.tname=b.td ";
-                $sql .= " where a.id between 1 and  $t";
+            case 'month' :
+                $sql = 'select tname as show_date,tname as t, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_day  a left JOIN ';
+                $sql .= '( select right(add_date,2) as td ,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count  ';
+                $sql .= 'where   add_date >= "' . date('Y-m-01',
+                        time()) . '" and (mode=99 or mode=50) GROUP BY  add_date ';
+                $sql .= ') b on a.tname=b.td ';
+                $sql .= 'where a.id between 1 and  ' . date('t');
                 break;
             case "query" :
-                $sdate = I('get.sdate');
-                $edate = I('get.edate');
-                import("ORG.Util.Date");
-                $dt      = new Date ($sdate);
-                $leftday = $dt->dateDiff($edate, 'd');
-                $sql     = " select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from ";
-                $sql .= " ( select '$sdate' as td ";
-                for ($i = 0; $i <= $leftday; $i++) {
-                    $sql .= "  UNION all select DATE_ADD('$sdate' ,INTERVAL $i DAY) ";
+                $start_date = $this->request->getGet('start_date');
+                $end_date   = $this->request->getGet('end_date');
+                //                import("ORG.Util.Date");
+                $dt      = new Date ($start_date);
+                $leftDay = $dt->dateDiff($end_date, 'd');
+                $sql     = 'select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from ';
+                $sql .= '( select "' . $start_date . '" as td ';
+                for ($i = 0; $i <= $leftDay; $i++) {
+                    $sql .= '  UNION all select DATE_ADD("' . $start_date . '"" ,INTERVAL ' . $i . ' DAY) ';
                 }
-                $sql .= " ) a left join ";
-                $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount ";
-                $sql .= " where  add_date between '$sdate' and '$edate'  and (mode=99 or mode=50) GROUP BY  add_date";
-                $sql .= " ) b on a.td=b.add_date ";
+                $sql .= ') a left join ';
+                $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count ';
+                $sql .= ' where  add_date between "' . $start_date . '" and "' . $end_date . '"  and (mode=99 or mode=50) GROUP BY  add_date ';
+                $sql .= ') b on a.td=b.add_date ';
                 break;
         }
-        $db = D('Adcount');
-        $rs = $db->query($sql);
-        $this->ajaxReturn(json_encode($rs));
+        $result = DB::select($sql);
+
+        return $result;
     }
 
 }
