@@ -9,8 +9,11 @@
 namespace App\Controllers\WifiAdmin;
 
 use Agent\AgentModel;
+use WifiAdmin\AgentPay;
+use WifiAdmin\AuthTplModel;
 use App\Controllers\BaseAdmin;
 use WifiAdmin\AgentLevelModel;
+use Illuminate\Database\Capsule\Manager as DB;
 
 /**
  * 代理商管理动作
@@ -88,7 +91,7 @@ class Agent extends BaseAdmin
             $this->display();
         }
     }
-    
+
     /**
      * 编辑代理商
      */
@@ -125,73 +128,55 @@ class Agent extends BaseAdmin
     }
 
     /**
-     * [del 删除代理商]
-     * @return [type] [description]
+     * 删除代理商
+     *
+     * @param $id
      */
-    public function del()
+    public function del($id)
     {
-        // 获得当前要删除的代理商id
-        $id = I('get.id', '0', 'int');
         // 获得当前代理商旗下的子代理商数据
-        $db             = D('Agent');
-        $dbshop         = D('shop');
-        $agwhere['pid'] = $id;
-        $count          = $dbshop->where($agwhere)->count();
-        // 代理商旗下还要代理商，就不能进行删除
-        if ($count > 0) {
-            $this->error("当前代理商包含商户账号，不能删除");
-        } else {
-            // 获得当前要删除的代理商数据
-            $where['id'] = $id;
-            $db->where($where)->delete();
-            $this->success("操作成功", U('index'));
-        }
+        $count = \ShopModel::select('pid')->wherePid($id)->count();
+        $count == 0 ? call_back(2, '', '当前代理商包含商户账号，不能删除!') : '';
+        $status = AgentModel::whereId($id)->update(['is_delete' => 1]);
+        $status ? call_back(0) : call_back(2, '', '操作失败!');
     }
 
     /**
-     * [level 代理商等级列表]
-     * @return [type] [description]
+     * 代理商等级列表
      */
     public function level()
     {
-        // 引用AdminPage页码工具类
-        import('@.ORG.AdminPage');
-        // 实例化一个对agentlevel表操作的对象
-        $db = D('Agentlevel');
-        // 统计代理商等级数量
-        $count = $db->count();
-        $page  = new AdminPage($count, C('ADMINPAGE'));
-        // 获得正常状态的代理商等级数据
-        $where['state'] = 1;
-        $result         = $db->where($where)->field('id,title,openpay,add_time,state')->limit($page->firstRow . ',' . $page->listRows)->order('add_time desc')->select();
+        $build  = AgentLevelModel::select(['id', 'title', 'open_pay', 'add_time', 'state'])->whereState(1);
+        $num    = $build->count();
+        $result = $build->orderBy('add_time desc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_links();
         // 分配页码
-        $this->assign('page', $page->show());
+        $this->assign('page', $page);
         // 分配正常状态的代理商等级数据
         $this->assign('lists', $result);
         $this->display();
     }
 
     /**
-     * [addlevel 添加代理商等级]
-     * @return [type] [description]
+     * 添加代理商等级
      */
-    public function addlevel()
+    public function addLevel()
     {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
-            $db = D('Agentlevel');
-            // 自动验证POST数据
-            if ($db->create()) {
-                // 添加代理商等级数据
-                if ($db->add()) {
-                    $this->success("添加成功", U('level'));
-                } else {
-                    $this->error("操作失败");
-                }
-            } else {
-                // 自动验证失败
-                $this->error($db->getError());
-            }
+        if ($post) {
+            $post['create_time'] = time();
+            $post['update_time'] = time();
+            $post['create_by']   = $this->uid;
+            $post['update_by']   = $this->uid;
+            $status              = AgentLevelModel::insertGetId($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
         } else {
             // 显示添加界面
             $this->display();
@@ -199,166 +184,124 @@ class Agent extends BaseAdmin
     }
 
     /**
-     * [editlevel 编辑代理商等级]
-     * @return [type] [description]
+     * 编辑代理商等级
      */
-    public function editlevel()
+    public function editLevel()
     {
+        $post = $this->request->getPost();
         // 实例化一个对agentlevel表操作的对象
         $db = D('Agentlevel');
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
-            // 自动验证POST数据
-            if ($db->create($_POST, 2)) {
-                // 保存编辑好的代理商等级信息
-                if ($db->where($where)->save()) {
-                    $this->success("操作成功", U('level'));
-                } else {
-                    $this->error("没有此角色信息");
-                }
-            } else {
-                // 自动验证失败
-                $this->error($db->getError());
-            }
+        if ($post) {
+            $post['update_time'] = time();
+            $status              = AgentLevelModel::whereId($post['id'])->update($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
         } else {
-            // 获得要编辑的代理商等级id
-            $id = I('get.id', '0', 'int');
-            // 获得当前要编辑的代理商等级数据
-            $where['id'] = $id;
-            $info        = $db->where($where)->find();
-            // 存在当前编辑的代理商等级数据，就分配
-            if ($info != false) {
-                $this->assign('info', $info);
-                $this->display();
-            } else {
-                $this->error("没有此等级信息");
-            }
+            $info = AgentLevelModel::select('*')->whereId($this->request->getGet('id'))->get()->toArray();
+            $info = $info ? $info[0] : [];
+            $this->assign('info', $info);
+            $this->display();
         }
     }
 
     /**
-     * [delevel 删除代理商等级]
-     * @return [type] [description]
+     * 删除代理商等级
+     *
+     * @param $id
      */
-    public function delevel()
+    public function delLevel($id)
     {
-        // 获得要删除的代理商等级id
-        $id = I('get.id', '0', 'int');
-        // 实例化一个对agentlevel表操作的对象
-        $db = D('Agentlevel');
-        // 实例化一个对agent表操作的对象
-        $dbag = D('Agent');
         // 统计当前要删除的代理商等级下的代理商数据
-        $agwhere['level'] = $id;
-        $count            = $dbag->where($agwhere)->count();
-        // 当前代理商等级下还有代理商，不能删除
-        if ($count > 0) {
-            $this->error("当前等级包含代理商账号，不能删除");
-        } else {
-            // 当前代理商等级下没有代理商
-            $where['id'] = $id;
-            $db->where($where)->delete();
-            $this->success("操作成功", U('level'));
-        }
+        $count = AgentModel::select('id')->whereLevel($id)->count();
+        $count > 0 ? call_back(2, '', '当前等级包含代理商账号，不能删除');
+        $status = AgentLevelModel::whereId($id)->update(['is_delete' => 1]);
+        $status ? call_back(0) : call_back(2, '', '操作失败!');
     }
 
     /**
-     * [paylist 费用进出记录列表]
-     * @return [type] [description]
+     * 费用进出记录列表
      */
-    public function paylist()
+    public function payList()
     {
-        // 引用页码工具类
-        import('ORG.Util.Page');
-        // 实例化一个对agentpay表操作对象
-        $db = D('Agentpay');
-        // 统计扣款记录
-        $count = $db->count();
-        $page  = new Page($count, C('ADMINPAGE'));
-        // 获得代理商的账号、代理商名称，操作日期，操作类型
-        $sql    = "select a.*,b.account,b.name from " . C('DB_PREFIX') . "agentpay a left join " . C('DB_PREFIX') . "agent b on a.aid=b.id order by a.add_time desc limit " . $page->firstRow . ',' . $page->listRows;
-        $result = $db->query($sql);
+        $build  = AgentPay::select('*')->with([
+            'getAgent' => function ($query) {
+                $query->select(['id', 'name']);
+            }
+        ]);
+        $num    = $build->count();
+        $result = $build->orderBy('add_time desc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
+        // 获得分页配置
+        $config = set_page_config($num, $this->url, 3, $this->perPage);
+        // 实例化分页类
+        $pagination = \Config\Services::pagination();
+        // 初始化分页配置
+        $pagination->initialize($config);
+        $page = $pagination->create_links();
         // 分配页码
-        $this->assign('page', $page->show());
+        $this->assign('page', $page);
         // 分配代理商的账号、代理商名称，操作日期，操作类型
         $this->assign('lists', $result);
         $this->display();
     }
 
     /**
-     * [dopay 账号调整(扣款记录)]
-     * @return [type] [description]
+     * 账号调整(扣款记录)
      */
-    public function dopay()
-    {// P(1);exit;
+    public function doPay()
+    {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
-            // 实例化一个对agent表操作对象
-            $dbagent = D('Agent');
-            // 获得代理商的id
-            $id = I('post.aid', '0', 'int');
+        if ($post) {
             // 获得当前代理商的信息
-            $where['id'] = $id;
-            $info        = $dbagent->where($where)->field('id,account,money')->find();
-            // P($_POST);exit;
-            if (!$info) {
-                $this->error("没有此代理商信息");
-            }
+            $info = AgentModel::select(['id', 'account', 'money'])->whereId($post['aid'])->get()->toArray();
+            $info = $info ? $info[0] : [];
+            !$info ? call_back(2, '', '没有此代理商信息!') : '';
             // 实例化一个对agentpay表操作对象
             $db = D('Agentpay');
-            // 操作类型
-            $do = $_POST['do'];
             // 获得当前代理商账号的余额
-            $money = $info['money'] == null ? 0 : $info['money'];
+            $post['old_money'] = !$info['money'] ? 0 : $info['money'];
             // 获得支付的金额
-            $pay = $_POST['paymoney'] == null ? 0 : $_POST['paymoney'];
-            //
-            $oldmoney = '';
-            $nowmoney = '';
-            // 自动验证POST数据
-            if ($db->create()) {
-                // $do为0表示扣款，为1表示充值
-                if ($do == "0") {
-                    if ($money < $pay) {
-                        $this->error("当前帐号余额不足，无法扣款");
-                    }
-                    $oldmoney = $money;
-                    $nowmoney = $money - $pay;
-                } else {
-                    $oldmoney = $money;
-                    $nowmoney = $money + $pay;
+            $pay = !$post['pay_money'] ? 0 : $post['pay_money'];
+            // 操作类型
+            if ($post['do'] == '0') {
+                if ($post['old_money'] < $pay) {
+                    call_back(2, '', '当前帐号余额不足，无法扣款!');
                 }
-                $_POST['oldmoney'] = $oldmoney;
-                $_POST['nowmoney'] = $nowmoney;
-                // P($_POST);exit;
-                // 向Agentpay表中添加数据
-                if ($db->add()) {
-                    // $do为0表示扣款
-                    if ($do == "0") {
-                        $dbagent->where($where)->setDec('money', $pay);
-                    } else {
-                        $dbagent->where($where)->setInc('money', $pay);
-                    }
-                    $this->success("操作成功", U('index'));
-                } else {
-                    $this->error("操作失败");
-                }
+                $post['now_money'] = $post['old_money'] - $pay;
             } else {
-                // 自动验证失败
-                $this->error($db->getError());
+                $post['now_money'] = $post['old_money'] + $pay;
+            }
+            $post['create_time'] = time();
+            $post['update_time'] = time();
+            $post['create_by']   = $this->uid;
+            $post['update_by']   = $this->uid;
+            $build               = AuthTplModel::select();
+            $build->getConnection()->beginTransaction();
+            $status = AuthTplModel::insertGetId($post);
+            if ($post['do'] == '0') {
+                // 字段值自减
+                $status1 = DB::table('wifi_agent')->decrement('money', $pay);
+            } else {
+                // 字段值自增
+                $status1 = DB::table('wifi_agent')->increment('money', $pay);
+            }
+            if ($status && $status1) {
+                // 提交事务
+                $build->getConnection()->commit();
+                call_back(0);
+            } else {
+                // 回滚事务
+                $build->getConnection()->rollBack();
+                call_back(2, '', '操作失败!');
             }
         } else {
-            // 实例化一个对agent表操作对象
-            $dbagent = D('Agent');
-            // 获得代理商的id
-            $id = I('get.id', '0', 'int');
-            // p($id);exit;
             // 获得当前代理商的信息
-            $where['id'] = $id;
-            $info        = $dbagent->where($where)->field('id,account,money')->find();
-            if (!$info) {
-                $this->error("没有此代理商信息");
-            }
+            $info = AgentModel::select([
+                'id',
+                'account',
+                'money'
+            ])->whereId($this->request->getGet('id'))->get()->toArray();
+            $info = $info ? $info[0] : [];
             // 分配当前代理商信息
             $this->assign('info', $info);
             $this->display();
