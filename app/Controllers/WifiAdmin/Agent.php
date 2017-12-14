@@ -213,7 +213,7 @@ class Agent extends BaseAdmin
     {
         // 统计当前要删除的代理商等级下的代理商数据
         $count = AgentModel::select('id')->whereLevel($id)->count();
-        $count > 0 ? call_back(2, '', '当前等级包含代理商账号，不能删除');
+        $count > 0 ? call_back(2, '', '当前等级包含代理商账号，不能删除') : '';
         $status = AgentLevelModel::whereId($id)->update(['is_delete' => 1]);
         $status ? call_back(0) : call_back(2, '', '操作失败!');
     }
