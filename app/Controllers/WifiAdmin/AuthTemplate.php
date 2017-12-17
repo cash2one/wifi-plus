@@ -168,6 +168,9 @@ class AuthTemplate extends BaseAdmin
 
     }
 
+    /**
+     *  编辑模板
+     */
     public function edit()
     {
         $post = $this->request->getPost();
@@ -208,11 +211,10 @@ class AuthTemplate extends BaseAdmin
             $this->assign('info', $info);
             $this->display();
         }
-
     }
 
     /**
-     * 删除
+     * 删除模板
      *
      * @param $id
      */

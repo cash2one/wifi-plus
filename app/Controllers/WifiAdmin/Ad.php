@@ -139,75 +139,45 @@ class AdAction extends BaseAdmin
     /**
      * 编辑广告
      */
-    public function editad()
+    public function editAd()
     {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
+        if ($post) {
             // 检测上传广告是否上传成功
-            if (!is_null($_FILES ['img'] ['name']) && $_FILES ['img'] ['name'] != "") {
-                list ($ret, $err) = $this->uploadFile(session('uid'), $_FILES ['img'] ['name'],
-                    $_FILES ['img'] ['tmp_name']);
-                if ($err !== null) {
-                    $this->error('上传失败');
-                } else {
-                    // 上传广告图片路径
-                    $_POST ['ad_thumb'] = $ret ['key'];
-                }
+            if ($_FILES['img']['name']) {
+                $path = $this->uploadFile($this->uid, $_FILES['img']['name'], $_FILES['img']['tmp_name']);
+                // 上传广告图片路径
+                $post['ad_thumb'] = $path;
             }
             // 设置广告更新的时间
-            $_POST ['update_time'] = time();
-            // 自动验证POST数据
-            if ($db->create()) {
-                // 保存修改后的广告数据
-                if ($db->where($where)->save()) {
-                    $this->success('修改成功', U('index'));
-                } else {
-                    $this->error('修改失败');
-                }
-            } else {
-                // 自动验证失败
-                $this->error($db->getError());
-            }
+            $post['update_time'] = time();
+            $status              = \AdModel::whereId($post['id'])->update($post);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
         } else {
             // 获得当前要编辑的广告id
-            $id = I('get.id', '0', 'int');
-            // 获得当前要编辑的广告信息
-            $where ['id'] = $id;
-            $result       = D('Ad')->where($where)->find();
-            if ($result) {
-                // 分配当前要修改的广告信息
-                $this->assign('info', $result);
-                $this->display();
-            } else {
-                $this->error('无此广告信息');
-            }
-
+            $info = \AdModel::select('*')->whereId($this->request->getGet('id'))->get()->toArray();
+            $info = $info ? $info[0] : [];
+            // 分配当前要修改的广告信息
+            $this->assign('info', $info);
+            $this->display();
         }
     }
 
     /**
-     * [delad 删除广告]
-     * @return [type] [description]
+     * 删除广告
+     *
+     * @param $id
      */
-    public function delad()
+    public function delAd($id)
     {
-        // 获得要删除广告的id
-        $id = I('get.id', '0', 'int');
-        if ($id) {
-            // 获得当前要删除广告的信息
-            $thumb = D('ad')->where("id=$id")->field("ad_thumb")->select();
-            // 删除广告信息
-            if (D('ad')->delete($id)) {
-                // 判断缩略图的文件是否存在
-                if (file_exists(".{$thumb[0]['ad_thumb']}")) {
-                    // 删除广告缩略图
-                    unlink(".{$thumb[0]['ad_thumb']}");
-                }
-                $this->success('删除成功', U('index'));
-            } else {
-                $this->error('操作出错');
-            }
+        $info = \AdModel::select('id')->whereId($id)->get()->toArray();
+        $info = $info ? $info[0] : [];
+        if ($info) {
+            $status = \AdModel::whereId($id)->update(['is_delete' => 1]);
+            $status ? call_back(0) : call_back(2, '', '操作失败!');
         }
+        call_back(2, '', '操作失败');
     }
 
     /**
@@ -216,41 +186,41 @@ class AdAction extends BaseAdmin
      */
     public function oddrpt()
     {
+        $post = $this->request->getPost();
         // 判断是否有POST数据提交
-        if (isset($_POST) && !empty($_POST)) {
-            // 获得查询方式
-            $way = $_POST ['mode'];
+        if ($post) {
             // 获得当前要统计的广告id
-            $aid = I('post.id', '0' . 'int');
-            switch (strtolower($way)) {
-                case "today" :
-                    $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                    $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit from ";
-                    $sql .= "(select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit from " . C('DB_PREFIX') . "adcount";
-                    $sql .= " where add_date='" . date("Y-m-d") . "' and mode=1 and aid=" . $aid;
-                    $sql .= " )a group by thour ) c ";
-                    $sql .= "  on a.t=c.thour ";
+            $aid = $post['id'] ? intval($post['id']) : 0;
+            // 获得查询方式
+            switch (strtolower($post['mode'])) {
+                case 'today' :
+                    $sql = ' select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                    $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit from ';
+                    $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,showup ,hit from wifi_ad_count ';
+                    $sql .= ' where add_date="' . date('Y-m-d') . '" and mode=1 and aid=' . $aid;
+                    $sql .= ' )a group by thour ) c ';
+                    $sql .= '  on a.t=c.thour ';
                     break;
-                case "yestoday" :
-                    $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                    $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit from ";
-                    $sql .= "(select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit from " . C('DB_PREFIX') . "adcount";
-                    $sql .= " where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and mode=1 and aid=" . $aid;
-                    $sql .= " )a group by thour ) c ";
-                    $sql .= "  on a.t=c.thour ";
+                case 'yesterday' :
+                    $sql = 'select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(show_up,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                    $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit from ';
+                    $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,show_up ,hit from wifi_ad_count ';
+                    $sql .= ' where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and mode=1 and aid=' . $aid;
+                    $sql .= ' )a group by thour ) c ';
+                    $sql .= '  on a.t=c.thour ';
                     break;
-                case "week" :
-                    $sql = "  select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit ,COALESCE(hit/showup*100,0) as rt from ";
-                    $sql .= " ( select CURDATE() as td ";
+                case 'week' :
+                    $sql = 'select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit ,COALESCE(hit/show_up*100,0) as rt from ';
+                    $sql .= ' ( select CURDATE() as td ';
                     for ($i = 1; $i < 7; $i++) {
-                        $sql .= "  UNION all select DATE_ADD(CURDATE() ,INTERVAL -$i DAY) ";
+                        $sql .= '  UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
                     }
                     $sql .= " ORDER BY td ) a left join ";
                     $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit from " . C('DB_PREFIX') . "adcount";
                     $sql .= " where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and mode=1 and aid=" . $aid . "  GROUP BY  add_date";
                     $sql .= " ) b on a.td=b.add_date ";
                     break;
-                case "month" :
+                case 'month' :
                     $t   = date("t");
                     $sql = " select tname as showdate,tname as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "day  a left JOIN";
                     $sql .= "( select right(add_date,2) as td ,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount  ";
@@ -258,7 +228,7 @@ class AdAction extends BaseAdmin
                     $sql .= " ) b on a.tname=b.td ";
                     $sql .= " where a.id between 1 and  $t";
                     break;
-                case "query" :
+                case 'query' :
                     $sdate = $_POST ['sdate'];
                     $edate = $_POST ['edate'];
                     import("ORG.Util.Date");
