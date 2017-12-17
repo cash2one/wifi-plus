@@ -181,10 +181,9 @@ class AdAction extends BaseAdmin
     }
 
     /**
-     * [oddrpt 获得当前广告的投放信息]
-     * @return [type] [description]
+     * 获得当前广告的投放信息
      */
-    public function oddrpt()
+    public function oddRpt()
     {
         $post = $this->request->getPost();
         // 判断是否有POST数据提交
@@ -215,62 +214,51 @@ class AdAction extends BaseAdmin
                     for ($i = 1; $i < 7; $i++) {
                         $sql .= '  UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
                     }
-                    $sql .= " ORDER BY td ) a left join ";
-                    $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit from " . C('DB_PREFIX') . "adcount";
-                    $sql .= " where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and mode=1 and aid=" . $aid . "  GROUP BY  add_date";
-                    $sql .= " ) b on a.td=b.add_date ";
+                    $sql .= ' ORDER BY td ) a left join ';
+                    $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit from wifi_ad_count';
+                    $sql .= ' where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and mode=1 and aid=' . $aid . '  GROUP BY  add_date';
+                    $sql .= ' ) b on a.td=b.add_date ';
                     break;
                 case 'month' :
-                    $t   = date("t");
-                    $sql = " select tname as showdate,tname as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "day  a left JOIN";
-                    $sql .= "( select right(add_date,2) as td ,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount  ";
-                    $sql .= " where   add_date >= '" . date("Y-m-01") . "' and mode=1 and aid=" . $aid . " GROUP BY  add_date";
-                    $sql .= " ) b on a.tname=b.td ";
-                    $sql .= " where a.id between 1 and  $t";
+                    $sql = ' select tname as show_date,tname as t, COALESCE(show_up,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_day  a left JOIN ';
+                    $sql .= '( select right(add_date,2) as td ,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count  ';
+                    $sql .= ' where   add_date >= "' . date('Y-m-01') . '" and mode=1 and aid=' . $aid . ' GROUP BY  add_date ';
+                    $sql .= ' ) b on a.tname=b.td ';
+                    $sql .= ' where a.id between 1 and  ' . date('t');
                     break;
                 case 'query' :
-                    $sdate = $_POST ['sdate'];
-                    $edate = $_POST ['edate'];
-                    import("ORG.Util.Date");
-                    $dt      = new Date ($sdate);
-                    $leftday = $dt->dateDiff($edate, 'd');
-                    $sql     = " select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from ";
-                    $sql .= " ( select '$sdate' as td ";
-                    for ($i = 0; $i <= $leftday; $i++) {
-                        $sql .= "  UNION all select DATE_ADD('$sdate' ,INTERVAL $i DAY) ";
+                    $start_date = $post['start_date'];
+                    $end_date   = $post['end_date'];
+                    //                    import("ORG.Util.Date");
+                    $dt      = new Date ($start_date);
+                    $leftDay = $dt->dateDiff($end_date, 'd');
+                    $sql     = ' select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from  ';
+                    $sql .= ' ( select "' . $start_date . '" as td ';
+                    for ($i = 0; $i <= $leftDay; $i++) {
+                        $sql .= '  UNION all select DATE_ADD("' . $start_date . '" ,INTERVAL ' . $i . ' DAY) ';
                     }
-                    $sql .= " ) a left join ";
-                    $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount ";
-                    $sql .= " where  add_date between '$sdate' and '$edate'  and mode=1 and aid=" . $aid . " GROUP BY  add_date";
-                    $sql .= " ) b on a.td=b.add_date ";
+                    $sql .= ' ) a left join ';
+                    $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count ';
+                    $sql .= ' where  add_date between "' . $start_date . '" and "' . $end_date . '"  and mode=1 and aid=' . $aid . ' GROUP BY  add_date ';
+                    $sql .= ') b on a.td=b.add_date ';
                     break;
             }
-            // 实例化一个对adcount表操作对象
-            $db = D('Adcount');
-            // 执行sql语句，获得查询结果
-            $rs = $db->query($sql);
-            $this->ajaxReturn(json_encode($rs));
+            $result = DB::select($sql);
+            call_back(0, $result);
         } else {
             // 没有post数据提交
             // 获得显示当前广告id
-            $aid = I('get.id', '0', 'int');
-            // 查询条件
-            $where ['id'] = $aid;
+            $aid = $this->request->getGet('id');
             // 获得当前广告信息
-            $result = D('Ad')->where($where)->find();
-            // 有查询结果，就显示出来
-            if ($result) {
-                $this->assign('info', $result);
-                $this->display();
-            } else {
-                $this->error('无此广告信息');
-            }
+            $result = \AdModel::select('*')->whereId($aid)->get()->toArray();
+            $result = $result ? $result[0] : [];
+            $this->assign('info', $result);
+            $this->display();
         }
     }
 
     /**
-     * [rpt 广告统计]
-     * @return [type] [description]
+     * 广告统计
      */
     public function rpt()
     {
@@ -280,83 +268,70 @@ class AdAction extends BaseAdmin
     }
 
     /**
-     * [getadrpt 获得广告投放查询结果]
-     *
-     * @param  [type] $way [查询的方式]
-     *
-     * @return [type]      [description]
+     * 获得广告投放查询结果
      */
-    public function getadrpt()
+    public function getAdRpt()
     {
+        $get = $this->request->getGet();
         // 获得查询的方式
-        $way = I('get.mode', 'query', 'string');
-        // 查询的条件
-        $where = " where shopid=" . session('uid');
         // 根据查询的方式，获得不同的sql语句
-        switch (strtolower($way)) {
-            case "today" ://查询今天
-                $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit from ";
-                $sql .= "(select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where add_date='" . date("Y-m-d") . "' and mode=1 ";
-                $sql .= " )a group by thour ) c ";
-                $sql .= "  on a.t=c.thour ";
+        switch (strtolower($get['mode'])) {
+            case 'today' ://查询今天
+                $sql = ' select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,show_up ,hit from wifi_ad_count ';
+                $sql .= ' where add_date="' . date('Y-m-d') . '" and mode=1 ';
+                $sql .= ' )a group by thour ) c ';
+                $sql .= '  on a.t=c.thour ';
                 break;
-            case "yestoday" ://查询昨天的
-                $sql = " select t,CONCAT(CURDATE(),' ',t,'点') as showdate, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "hours a left JOIN ";
-                $sql .= "(select thour, sum(showup)as showup,sum(hit) as hit from ";
-                $sql .= "(select  FROM_UNIXTIME(add_time,\"%H\") as thour,showup ,hit from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and mode=1 ";
-                $sql .= " )a group by thour ) c ";
-                $sql .= "  on a.t=c.thour ";
+            case 'yesterday' ://查询昨天的
+                $sql = ' select t,CONCAT(CURDATE()," ",t,"点") as show_date, COALESCE(showup,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_hours a left JOIN ';
+                $sql .= '(select thour, sum(show_up)as show_up,sum(hit) as hit from ';
+                $sql .= '(select  FROM_UNIXTIME(add_time,"%H") as thour,show_up ,hit from wifi_ad_count ';
+                $sql .= ' where add_date=DATE_ADD(CURDATE() ,INTERVAL -1 DAY) and mode=1 ';
+                $sql .= ' )a group by thour ) c ';
+                $sql .= '  on a.t=c.thour ';
                 break;
-            case "week" ://查询上一周
-                $sql = "  select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit ,COALESCE(hit/showup*100,0) as rt from ";
-                $sql .= " ( select CURDATE() as td ";
+            case 'week' ://查询上一周
+                $sql = ' select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit ,COALESCE(hit/show_up*100,0) as rt from ';
+                $sql .= ' ( select CURDATE() as td ';
                 for ($i = 1; $i < 7; $i++) {
-                    $sql .= "  UNION all select DATE_ADD(CURDATE() ,INTERVAL -$i DAY) ";
+                    $sql .= '  UNION all select DATE_ADD(CURDATE() ,INTERVAL -' . $i . ' DAY) ';
                 }
-                $sql .= " ORDER BY td ) a left join ";
-                $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit from " . C('DB_PREFIX') . "adcount";
-                $sql .= " where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and mode=1 GROUP BY  add_date";
-                $sql .= " ) b on a.td=b.add_date ";
+                $sql .= ' ORDER BY td ) a left join ';
+                $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit from wifi_ad_count ';
+                $sql .= 'where   add_date between DATE_ADD(CURDATE() ,INTERVAL -6 DAY) and CURDATE() and mode=1 GROUP BY  add_date ';
+                $sql .= ' ) b on a.td=b.add_date ';
                 break;
-            case "month" ://查询一个月的
-                $t   = date("t");
-                $sql = " select tname as showdate,tname as t, COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from " . C('DB_PREFIX') . "day  a left JOIN";
-                $sql .= "( select right(add_date,2) as td ,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount  ";
-                $sql .= " where   add_date >= '" . date("Y-m-01") . "' and mode=1 GROUP BY  add_date";
-                $sql .= " ) b on a.tname=b.td ";
-                $sql .= " where a.id between 1 and  $t";
+            case 'month' ://查询一个月的
+                $sql = ' select tname as showdate,tname as t, COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from wifi_day  a left JOIN ';
+                $sql .= '( select right(add_date,2) as td ,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count  ';
+                $sql .= ' where   add_date >= "' . date('Y-m-01') . '" and mode=1 GROUP BY  add_date ';
+                $sql .= ' ) b on a.tname=b.td ';
+                $sql .= ' where a.id between 1 and  ' . date('t');
                 break;
-            case "query" ://查询所有的广告
+            case 'query' ://查询所有的广告
                 // 开始时间
-                $sdate = I('get.sdate');
+                $start_date = $get['start_date'];
                 // 结束时间
-                $edate = I('get.edate');
+                $end_date = $get['end_date'];
                 // 引用时间处理工具类
-                import("ORG.Util.Date");
-                $dt = new Date ($sdate);
+                //                import("ORG.Util.Date");
+                $dt = new Date ($start_date);
                 // 转换时间格式(2015-01-19)
-                $leftday = $dt->dateDiff($edate, 'd');
-                $sql     = " select td as showdate,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(showup,0)  as showup, COALESCE(hit,0)  as hit,COALESCE(hit/showup*100,0) as rt from ";
-                $sql .= " ( select '$sdate' as td ";
-                for ($i = 0; $i <= $leftday; $i++) {
-                    $sql .= "  UNION all select DATE_ADD('$sdate' ,INTERVAL $i DAY) ";
+                $leftDay = $dt->dateDiff($end_date, 'd');
+                $sql     = ' select td as show_date,right(td,5) as td,datediff(td,CURDATE()) as t,COALESCE(show_up,0)  as show_up, COALESCE(hit,0)  as hit,COALESCE(hit/show_up*100,0) as rt from ';
+                $sql .= ' ( select "' . $start_date . '"" as td ';
+                for ($i = 0; $i <= $leftDay; $i++) {
+                    $sql .= '  UNION all select DATE_ADD("' . $start_date . '" ,INTERVAL ' . $i . ' DAY) ';
                 }
-                $sql .= " ) a left join ";
-                $sql .= "( select add_date,sum(showup) as showup ,sum(hit) as hit  from " . C('DB_PREFIX') . "adcount ";
-                $sql .= " where  add_date between '$sdate' and '$edate'  and mode=1 GROUP BY  add_date";
-                $sql .= " ) b on a.td=b.add_date ";
+                $sql .= ' ) a left join ';
+                $sql .= '( select add_date,sum(show_up) as show_up ,sum(hit) as hit  from wifi_ad_count ';
+                $sql .= ' where  add_date between "' . $start_date . '" and "' . $end_date . '"  and mode=1 GROUP BY  add_date ';
+                $sql .= ' ) b on a.td=b.add_date ';
                 break;
         }
-        // 实例化一个对adcount表操作对象
-        $db = D('Adcount');
-        // 执行sql语句
-        $rs = $db->query($sql);
-        // 将结果异步json返回
-        $this->ajaxReturn(json_encode($rs));
-        exit;
-        // echo json_encode($rs);
+        $result = DB::select($sql);
+        call_back(0, $result);
     }
 }
