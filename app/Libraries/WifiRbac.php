@@ -233,7 +233,7 @@ class WifiRbac
             'access' => C('RBAC_ACCESS_TABLE'),
             'node'   => C('RBAC_NODE_TABLE')
         ];
-        $sql    = "select node.id,node.g,node.m,node.a from " . $table['role'] . " as role," . $table['user'] . " as user," . $table['access'] . " as access ," . $table['node'] . " as node " . "where user.user_id='{$authId}' and user.role_id=role.id and ( access.role_id=role.id  or (access.role_id=role.pid and role.pid!=0 ) ) and role.status=1 and access.node_id=node.id and node.status=1";
+        $sql    = 'select node.id,node.g,node.m,node.a from ' . $table['role'] . ' as role,'. $table['user'] . ' as user,' . $table['access'] . ' as access ,' . $table['node'] . ' as node ' . 'where user.user_id='.$authId.' and user.role_id=role.id and ( access.role_id=role.id  or (access.role_id=role.pid and role.pid!=0 ) ) and role.status=1 and access.node_id=node.id and node.status=1 ';
         $apps   = $db->query($sql);
         $access = [];
         foreach ($apps as $key => $app) {
@@ -256,7 +256,7 @@ class WifiRbac
         // Db方式
         $db     = Db::getInstance(C('RBAC_DB_DSN'));
         $table  = ['role' => C('RBAC_ROLE_TABLE'), 'user' => C('RBAC_USER_TABLE'), 'access' => C('RBAC_ACCESS_TABLE')];
-        $sql    = "select access.node_id from " . $table['role'] . " as role," . $table['user'] . " as user," . $table['access'] . " as access " . "where user.user_id='{$authId}' and user.role_id=role.id and ( access.role_id=role.id  or (access.role_id=role.pid and role.pid!=0 ) ) and role.status=1 and  access.module='{$module}' and access.status=1";
+        $sql    = 'select access.node_id from ' . $table['role'] . ' as role,' . $table['user'] . ' as user,' . $table['access'] . ' as access where user.user_id='.$authId.' and user.role_id=role.id and ( access.role_id=role.id  or (access.role_id=role.pid and role.pid!=0 ) ) and role.status=1 and  access.module='.$module.' and access.status=1';
         $rs     = $db->query($sql);
         $access = [];
         foreach ($rs as $node) {
