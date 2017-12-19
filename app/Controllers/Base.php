@@ -29,6 +29,16 @@ class Base extends YP_Controller
     public $perPage = 15;
 
     /**
+     * @var string
+     */
+    public $keyword = '起讯无线 起讯免费wifi 起讯免费上网 起讯广告 起讯网络广告';
+
+    /**
+     * @var string
+     */
+    public $content = '起讯无线 起讯免费wifi 起讯免费上网 起讯广告 起讯网络广告';
+
+    /**
      * 用户ID
      *
      * @var
@@ -62,7 +72,6 @@ class Base extends YP_Controller
         //        $this->assign('Theme', $style);
         //        $this->assign('action', $this->getActionName());
         $this->uid = $_SESSION['uid'] ?? 20;
-
     }
 
     /**
@@ -117,7 +126,7 @@ class Base extends YP_Controller
             //                return [null, $upload->getErrorMsg()];
             //            } else {
             //                $info     = $upload->getName();
-            $key       = '/Upload/ad/' . $subDir;;
+            $key = '/Upload/ad/' . $subDir;;
 
             return $key;
             //            }
@@ -163,6 +172,7 @@ class Base extends YP_Controller
             if ($response->status != '200') {
                 call_back(2, '', '上传失败!');
             }
+
             return $key1;
         }
     }

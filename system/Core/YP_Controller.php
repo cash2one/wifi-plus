@@ -131,6 +131,13 @@ class YP_Controller
     protected $controller;
 
     /**
+     * 模板数据
+     *
+     * @var array
+     */
+    public $tempData = [];
+
+    /**
      * 当前的url
      *
      * @var string
@@ -238,8 +245,13 @@ class YP_Controller
         $this->method     = $router->methodName();
         $this->extension  = $config->extension ?? $this->extension;
         // 缓存目录
-        $config->cache_dir = $config->cache_dir . $this->directory . $this->controller . '/';
-        $this->twig        = Services::twig($config);
+        $config->cache_dir = $config->cache_dir . $this->directory . $this->controller . DIRECTORY_SEPARATOR;
+        $loader            = new \Twig_Loader_Filesystem($config->template_dir);
+        $this->twig        = new \Twig_Environment($loader, [
+            'cache'       => $config->cache_dir,
+            'debug'       => $config->debug,
+            'auto_reload' => $config->auto_reload,
+        ]);
         $this->tempPath    = $config->template_dir;
     }
 
@@ -254,7 +266,7 @@ class YP_Controller
         // 修改模板名称
         $templateName = !is_null($htmlFile) ? $htmlFile : $this->method;
         // 模板文件
-        $tempFile = $this->directory . $this->controller . '/' . $templateName . $this->extension;;
+        $tempFile = $this->directory . $this->controller . DIRECTORY_SEPARATOR . $templateName . $this->extension;
         // 模板路径
         $htmlPath     = $this->tempPath . $this->directory . $this->controller;
         $tempFilePath = $this->tempPath . $tempFile;
@@ -262,22 +274,64 @@ class YP_Controller
         is_dir($htmlPath) or mkdir($htmlPath, 0777, true);
         // 模板文件
         is_file($tempFilePath) or touch($tempFilePath);
-        echo $this->twig->render($tempFile, $data);
+        echo $this->render($tempFile, $data);
         if (!YP_DEBUG) {
             die;
         }
     }
 
     /**
+     * 模版渲染
+     *
+     * @param string $template 模板名
+     * @param array  $data     变量数组
+     * @param bool   $return   true返回 false直接输出页面
+     *
+     * @return string
+     */
+    protected function render($template, $data = [], $return = false)
+    {
+        $template = $this->twig->loadTemplate($this->_getTemplateName($template));
+        $data     = array_merge($this->tempData, $data);
+        if ($return === true) {
+            return $template->render($data);
+        } else {
+            return $template->display($data);
+        }
+    }
+
+    /**
+     * 获取模版名
+     *
+     * @param string $template
+     *
+     * @return string
+     */
+    private function _getTemplateName($template)
+    {
+        $default_ext_len = strlen($this->extension);
+        if (substr($template, -$default_ext_len) != $this->extension) {
+            $template .= $this->extension;
+        }
+
+        return $template;
+    }
+
+    /**
      * 分配变量到模板中
      *
-     * @param      $var
+     * @param $var
      * @param null $value
      */
-    public function assign($var, $value = null)
+    public function assign($var, $value = NULL)
     {
-        $this->twig->assign($var, $value);
-        $this->twig->assign('FRONT_PATH', FRONT_PATH);
+        if (is_array($var)) {
+            foreach ($var as $key => $val) {
+                $this->tempData[$key] = $val;
+            }
+        } else {
+            $this->tempData[$var] = $value;
+        }
     }
 
     /**
