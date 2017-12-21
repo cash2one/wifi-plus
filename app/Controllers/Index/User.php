@@ -8,7 +8,6 @@
  */
 namespace App\Controllers\Index;
 
-
 use ShopModel;
 use Api\MemberModel;
 use Api\CommentModel;
@@ -160,48 +159,39 @@ class User extends Base
      */
     public function doLogin()
     {
+        P(YP_DEBUG);
+        P(121312312);
+        echo 111;
+        die;
         $postData = $this->request->getPost();
-        if ($postData) {
-            // 获得商户的用户名和密码
-            $user     = isset ($postData['user']) ? strval($postData['user']) : '';
-            $pass     = isset ($postData['password']) ? strval($postData['password']) : '';
-            $shopInfo = ShopModel::select([
-                'd',
-                'account',
-                'shop_name',
-                'pid'
-            ])->whereAccount($user)->wherePassword(md5($pass))->get()->toArray();
-            $shopInfo = $shopInfo ? $shopInfo[0] : [];
-            // 将当前的商户信息(账号、商铺名称、代理商id)存放到session中
-            if ($shopInfo) {
-                $_SESSION('uid', $shopInfo ['id']);
-                $_SESSION('user', $shopInfo ['account']);
-                $_SESSION('shop_name', $shopInfo ['shop_name']);
-                $_SESSION('pid', $shopInfo ['pid']);
-                // 当商户登陆成功后，异步返回登陆成功信息并且跳转到商户首页
-                //                $data ['error'] = 0;
-                //                $data ['msg']   = '';
-                //                $data ['url']   = U('user/index');
-                //                return $this->ajaxReturn($data);
-                // $this->success('登录成功','index.php?m=User');
-                call_back(0);
-            } else {
-                // 当商户登陆失败后，异步返回登陆失败信息
-                //                $data ['error'] = 1;
-                //                $data ['msg']   = "帐号信息不正确";
-                //
-                //                return $this->ajaxReturn($data);
-                call_back(2, '', '帐号信息不正确');
-
-            }
-        } else {
-            // 没有post数据时，显示如下信息
-            //            $data ['error'] = 1;
-            //            $data ['msg']   = "服务器忙，请稍候再试";
-            //
-            //            return $this->ajaxReturn($data);
+        if (!$postData) {
             call_back(2, '', '服务器忙，请稍候再试');
         }
+        // 获得商户的用户名和密码
+        $user     = isset ($postData['user']) ? strval($postData['user']) : '';
+        $pass     = isset ($postData['password']) ? strval($postData['password']) : '';
+        $shopInfo = ShopModel::select([
+            'd',
+            'account',
+            'shop_name',
+            'pid'
+        ])->whereAccount($user)->wherePassword(md5($pass))->get()->toArray();
+        $shopInfo = $shopInfo ? $shopInfo[0] : [];
+        // 将当前的商户信息(账号、商铺名称、代理商id)存放到session中
+        if (!$shopInfo) {
+            call_back(2, '', '帐号信息不正确');
+        }
+        $_SESSION('uid', $shopInfo ['id']);
+        $_SESSION('user', $shopInfo ['account']);
+        $_SESSION('shop_name', $shopInfo ['shop_name']);
+        $_SESSION('pid', $shopInfo ['pid']);
+        // 当商户登陆成功后，异步返回登陆成功信息并且跳转到商户首页
+        //                $data ['error'] = 0;
+        //                $data ['msg']   = '';
+        //                $data ['url']   = U('user/index');
+        //                return $this->ajaxReturn($data);
+        // $this->success('登录成功','index.php?m=User');
+        call_back(0);
 
     }
 
@@ -1083,7 +1073,7 @@ class User extends Base
                 $sql .= 'where a.id between 1 and  ' . date('t');
                 break;
             case 'query' :
-//                import("ORG.Util.Date");
+                //                import("ORG.Util.Date");
                 //$sdt=Date("Y-M-d",$sdate);
                 //$edt=Date("Y-M-d",$edate);
                 $dt      = new Date ($param['start_date']);
@@ -1223,13 +1213,13 @@ class User extends Base
             $timestamp = time();
             $tmpArr    = [$post['t_wx_token'], $timestamp, $nonce];
             sort($tmpArr, SORT_STRING);
-            $tmpStr    = implode($tmpArr);
-            $urls      = explode('?', $post['t_wx_url']);
-            $data      = 'timestamp=' . $timestamp . ' &signature=' . sha1($tmpStr) . ' &nonce=' . $nonce . ' &echoStr=' . $echoStr;
+            $tmpStr = implode($tmpArr);
+            $urls   = explode('?', $post['t_wx_url']);
+            $data   = 'timestamp=' . $timestamp . ' &signature=' . sha1($tmpStr) . ' &nonce=' . $nonce . ' &echoStr=' . $echoStr;
             if (isset($urls[1])) {
                 $data = $data . ' & ' . $urls[1];
             }
-            $url = $urls[0] . ' ? ' . $data;
+            $url    = $urls[0] . ' ? ' . $data;
             $status = file_get_contents($url);
             if ($status != $echoStr) { //验证接口
                 call_back(2, '', '验证失败!');
@@ -1237,9 +1227,13 @@ class User extends Base
             $status = ShopModel::whereId($this->uid)->update($post);
             $status ? call_back(0) : call_back(2, '', '操作失败!');
         } else {
-            $info = ShopModel::select(['t_wx_url','t_wx_token','wx_id','wx_token'])->whereId($this->uid)->get()->toArray();
+            $info = ShopModel::select([
+                't_wx_url',
+                't_wx_token',
+                'wx_id',
+                'wx_token'
+            ])->whereId($this->uid)->get()->toArray();
             $info = $info ? $info[0] : [];
-
             if (!$info || !$info ['wx_id']) {
                 $info['wei_xin_url'] = '';
             } else {
@@ -1257,16 +1251,16 @@ class User extends Base
     {
         $post = $this->request->getPost();
         if ($post) {
-            $info = ShopModel::select(['id','wx_id'])->whereWxId($post['wx_id'])->get()->toArray();
+            $info = ShopModel::select(['id', 'wx_id'])->whereWxId($post['wx_id'])->get()->toArray();
             if (!$info && $info['id'] != $this->uid) {
                 call_back(2, '', '微信原始ID已存在!');
             }
             if ($post['wx_id']) {
                 call_back(2, '', '微信原始ID不能为空!');
             }
-            $post['wx_token'] = md5($this->uid . time());
+            $post['wx_token']    = md5($this->uid . time());
             $post['update_time'] = time();
-            $status = ShopModel::whereId($this->uid)->update($post);
+            $status              = ShopModel::whereId($this->uid)->update($post);
             $status ? call_back(0) : call_back(2, '', '操作失败!');
 
         } else {
