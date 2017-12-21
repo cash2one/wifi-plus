@@ -104,7 +104,7 @@ class User extends Base
     public function index()
     {
         // 获得系统提示信息
-        $notes = NoticeModel::select('*')->orderBy('create_time desc')->skip(0)->take(5)->get()->toArray();
+        $notes = NoticeModel::select('*')->orderBy('create_time','desc')->skip(0)->take(5)->get()->toArray();
         $this->assign('notice', $notes);
         $this->display();
     }
