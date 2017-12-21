@@ -34,7 +34,7 @@ function isaccount(s){
 	return true ;
 }
 function AlertTips(msg,time){
-	 $("#alertmsg").html(msg);
+	 $("#alert_msg").html(msg);
 	 $(".alert").show();
 	 setTimeout("$('.alert').hide()", time);
 }

@@ -159,10 +159,6 @@ class User extends Base
      */
     public function doLogin()
     {
-        P(YP_DEBUG);
-        P(121312312);
-        echo 111;
-        die;
         $postData = $this->request->getPost();
         if (!$postData) {
             call_back(2, '', '服务器忙，请稍候再试');
@@ -171,7 +167,7 @@ class User extends Base
         $user     = isset ($postData['user']) ? strval($postData['user']) : '';
         $pass     = isset ($postData['password']) ? strval($postData['password']) : '';
         $shopInfo = ShopModel::select([
-            'd',
+            'id',
             'account',
             'shop_name',
             'pid'
@@ -181,10 +177,10 @@ class User extends Base
         if (!$shopInfo) {
             call_back(2, '', '帐号信息不正确');
         }
-        $_SESSION('uid', $shopInfo ['id']);
-        $_SESSION('user', $shopInfo ['account']);
-        $_SESSION('shop_name', $shopInfo ['shop_name']);
-        $_SESSION('pid', $shopInfo ['pid']);
+        $_SESSION['uid']       = $shopInfo ['id'];
+        $_SESSION['user']      = $shopInfo ['account'];
+        $_SESSION['shop_name'] = $shopInfo ['shop_name'];
+        $_SESSION['pid']       = $shopInfo ['pid'];
         // 当商户登陆成功后，异步返回登陆成功信息并且跳转到商户首页
         //                $data ['error'] = 0;
         //                $data ['msg']   = '';
