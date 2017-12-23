@@ -74,6 +74,7 @@ class User extends Base
     {
         // 获得当前商户信息
         $info = ShopModel::select([
+            'id',
             'shop_name',
             'province',
             'logo',
@@ -89,7 +90,9 @@ class User extends Base
         $info = $info ? $info[0] : [];
         //
         if ($info) {
-            $info ['logo'] = $this->downloadUrl($info['logo']);
+            $info['logo'] = $this->downloadUrl($info['logo']);
+            $info['shop_level'] = explode(',', $info['shop_level']);
+            $info['trade']      = explode(',', $info['trade']);
         }
         // 分配商户消费水平及，行业类别
         $this->assign('enumData', $this->enumData);
@@ -104,15 +107,15 @@ class User extends Base
     public function index()
     {
         // 获得系统提示信息
-        $notes = NoticeModel::select('*')->orderBy('create_time','desc')->skip(0)->take(5)->get()->toArray();
+        $notes = NoticeModel::select('*')->orderBy('create_time', 'desc')->skip(0)->take(5)->get()->toArray();
         $this->assign('notice', $notes);
         $this->display();
     }
 
     /**
-     *
+     * 编辑商户信息
      */
-    public function doIndex()
+    public function update()
     {
         $postData = $this->request->getPost();
         if (!is_null($_FILES['img']['name']) && $_FILES['img']['name'] != '') {
@@ -122,6 +125,7 @@ class User extends Base
             }
             $postData['logo'] = $ret ['key'];
         }
+        P($postData);
         $lv = '';
         // 商业消费水平
         foreach ($postData['shop_level'] as $K => $v) {
