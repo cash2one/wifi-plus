@@ -90,7 +90,7 @@ class User extends Base
         $info = $info ? $info[0] : [];
         //
         if ($info) {
-            $info['logo'] = $this->downloadUrl($info['logo']);
+            $info['logo']       = $this->downloadUrl($info['logo']);
             $info['shop_level'] = explode(',', $info['shop_level']);
             $info['trade']      = explode(',', $info['trade']);
         }
@@ -146,6 +146,11 @@ class User extends Base
         // 添加数据
         $status = ShopModel::whereId($this->uid)->update($postData);
         $status ? call_back(0) : call_back(2, '', '操作出错，请重新操作');
+    }
+
+    public function uploadLogoImg()
+    {
+        
     }
 
     /**
