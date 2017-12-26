@@ -150,7 +150,12 @@ class User extends Base
 
     public function uploadLogoImg()
     {
-        
+        P($this->request->getPost());
+        P($_FILES);
+
+
+
+        die;
     }
 
     /**
