@@ -152,9 +152,6 @@ class User extends Base
     {
         P($this->request->getPost());
         P($_FILES);
-
-
-
         die;
     }
 
@@ -448,6 +445,22 @@ class User extends Base
         // 保存修改后的应用设置信息
         $status = ShopModel::whereId($this->uid)->update($post);
         $status ? call_back(0) : call_back(2, '', '操作失败');
+    }
+
+    /**
+     * 微信认证
+     */
+    public function authWeiXin()
+    {
+        $info = ShopModel::select([
+            'wx_id',
+            'wx_token',
+            't_wx_url',
+            't_wx_token',
+        ])->whereId($this->uid)->get()->toArray();
+        $info = $info ? $info[0] : [];
+        $this->assign('info',$info);
+        $this->display();
     }
 
     /**
