@@ -471,7 +471,7 @@ class User extends Base
         $build = \AdModel::select(['id', 'ad_pos', 'ad_thumb', 'ad_sort', 'mode'])->whereUid($this->uid);
         $num   = $build->count();
         // 广告数据
-        $result = $build->orderBy('ad_sort desc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
+        $result = $build->orderBy('ad_sort' ,'desc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
         // 获得分页配置
         $config = set_page_config($num, $this->url, 3, $this->perPage);
         // 实例化分页类
@@ -600,15 +600,12 @@ class User extends Base
             'route_name',
             'sort_id',
             'gw_id',
-            'add_time',
+            'create_time',
             'last_heartbeat_time'
         ])->whereShopId($this->uid);
         $num   = $build->count();
         // 路由数据
-        $result = $build->orderBy([
-            'sort_id'  => 'asc',
-            'add_time' => 'asc'
-        ])->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
+        $result = $build->orderBy('sort_id','asc')->orderBy('create_time','asc')->skip(($this->page - 1) * $this->perPage)->take($this->perPage)->get()->toArray();
         // 获得分页配置
         $config = set_page_config($num, $this->url, 3, $this->perPage);
         // 实例化分页类

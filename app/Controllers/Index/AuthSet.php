@@ -27,7 +27,7 @@ class AuthSet extends Base
         // 获得商户模板id,模板目录、广告显示时间,认证方式
         $shop = $this->_getShop();
         // 获得所有的模板数据
-        $list = AuthTplModel::select('*')->whereState(1)->orderBy('id asc')->get()->toArray();
+        $list = AuthTplModel::select('*')->whereState(1)->orderBy('id', 'asc')->get()->toArray();
         $list = $list ?? [];
         $this->assign('tpl', $list);
         $this->assign('a', 'authtplset');
@@ -105,7 +105,7 @@ class AuthSet extends Base
     private function _getShop()
     {
         $shop = \ShopModel::select([
-            'pl_id',
+            'tpl_id',
             'tpl_path',
             'ad_show_time',
             'auth_mode'
