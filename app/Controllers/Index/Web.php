@@ -12,14 +12,14 @@ use Index\WapModel;
 use Index\ArtsModel;
 use Index\WapTplModel;
 use Index\WapCateLogModel;
-use App\Controllers\BaseUser;
+use App\Controllers\Base;
 
 /**
  * Class Web
  *
  * @package App\Controllers\Index
  */
-class Web extends BaseUser
+class Web extends Base
 {
 
     /**
