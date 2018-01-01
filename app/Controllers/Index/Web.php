@@ -100,7 +100,7 @@ class Web extends Base
     {
         $result = WapCateLogModel::select('*')->whereUid($this->uid)->get()->toArray();
         foreach ($result as &$value) {
-            $value ['title_pic'] = $this->downloadUrl($value ['title_pic']);
+            $value['title_pic'] = $this->downloadUrl($value['title_pic']);
         }
         $this->assign('lists', $result);
         $this->display();
@@ -113,13 +113,10 @@ class Web extends Base
     {
         $postData = $this->request->getPost();
         if ($postData) {
-            list ($ret, $err) = $this->uploadFile($this->uid, $_FILES ['img'] ['name'], $_FILES['img']['tmp_name']);
+            $path = $this->uploadFile($this->uid, $_FILES['img']['name'], $_FILES['img']['tmp_name']);
             //7牛上传
-            if ($err !== null) {
-                call_back(2, '', '上传失败');
-            }
             $postData ['uid']         = $this->uid;
-            $postData ['title_pic']   = $ret ['key'];
+            $postData ['title_pic']   = $path['key'];
             $postData ['create_time'] = time();
             $postData ['update_time'] = time();
             $status                   = WapCateLogModel::insertGetId($postData);
@@ -145,12 +142,8 @@ class Web extends Base
                 call_back(2, '', '无此栏目信息');
             }
             if (!is_null($_FILES['img']['name']) && $_FILES['img']['name'] != '') {
-                list ($ret, $err) = $this->uploadFile($this->uid, $_FILES ['img'] ['name'], $_FILES['img']['tmp_name']);
-                //7牛上传
-                if ($err !== null) {
-                    call_back(2, '', '上传失败');
-                }
-                $postData['title_pic'] = $ret['key'];
+                $path = $this->uploadFile($this->uid, $_FILES['img']['name'], $_FILES['img']['tmp_name']);
+                $postData['title_pic'] = $path['key'];
             }
             $postData['uid']         = $this->uid;
             $postData['create_time'] = time();
